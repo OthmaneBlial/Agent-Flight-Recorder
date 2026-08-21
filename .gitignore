@@ -1,0 +1,6 @@
+node_modules/
+dist/
+build/
+.flight-recorder/
+.DS_Store
+*.log

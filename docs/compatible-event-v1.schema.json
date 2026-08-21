@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-flight-recorder.local/schemas/compatible-event-v1.json",
+  "title": "Agent Flight Recorder compatible event",
+  "description": "Local event envelope for agents without a native adapter. Unknown provider fields are preserved.",
+  "type": "object",
+  "required": ["schema", "sessionId", "event", "timestamp"],
+  "properties": {
+    "schema": { "const": "afr.event.v1" },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "event": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "cwd": { "type": "string" },
+    "turnId": { "type": "string" },
+    "model": { "type": "string" },
+    "prompt": { "type": "string" },
+    "response": { "type": "string" },
+    "reasoning": { "type": "string" },
+    "toolName": { "type": "string" },
+    "toolInput": {},
+    "toolOutput": {},
+    "callId": { "type": "string" },
+    "command": { "type": "string" },
+    "filePath": { "type": "string" },
+    "durationMs": { "type": "number", "minimum": 0 },
+    "status": { "enum": ["running", "success", "error", "blocked", "neutral"] },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "cachedTokens": { "type": "integer", "minimum": 0 },
+        "costUsd": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

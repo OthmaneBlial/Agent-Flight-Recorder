@@ -49,13 +49,13 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.9",
     "@playwright/test": "^1.62.1",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.1.0",
     "concurrently": "^10.0.5",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
+    "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"
   },

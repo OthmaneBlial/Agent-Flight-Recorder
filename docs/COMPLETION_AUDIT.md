@@ -21,11 +21,16 @@ Agent Flight Recorder is complete for the local evidence surfaces that the suppo
 
 ## Automated gates
 
+- `npm run format:check`: Biome formatting passed.
+- `npm run lint`: Biome static and accessibility lint passed with no errors.
 - `npm run check`: strict client and server TypeScript passed.
-- `npm test`: 41 tests in 9 files passed.
+- `npm test`: 43 tests in 10 files passed, including the deterministic demo's diff, retry, permission, comparison, policy, and idempotency contract.
 - `npm run build`: production server and Vite console passed.
+- `npm run test:e2e`: 2 Chromium journeys passed against the seeded production server, covering replay, exact code evolution, comparison, keyboard selection, phone layout, console errors, failed requests, and horizontal overflow.
 - `npm audit --audit-level=moderate`: zero vulnerabilities.
 - SQLite `PRAGMA quick_check`: `ok`; `PRAGMA foreign_key_check`: no rows.
+
+The real Playwright screenshot run generated `docs/assets/replay-console.png`, `docs/assets/code-evolution.png`, and `docs/assets/mobile-replay.png` from the isolated demo. No native recorder contents or personal workspace paths are present in those assets. The browser suite also verifies that sandbox health contains no user-home path, the public overview exposes only the relative demo-store label, scan and live-hook ingestion return `403`, and the console visibly reports `SANDBOX LOCKED`.
 
 ## Explicit external boundaries
 
@@ -34,4 +39,8 @@ Agent Flight Recorder is complete for the local evidence surfaces that the suppo
 - Parallel identical actions without provider call IDs can remain temporally ambiguous. Every callback is retained, and the nearest compatible same-turn/window action is used without claiming stronger identity.
 - User-level Claude and Cursor hook files were absent during the live audit (`0/31` and `0/21`). Installation is intentionally dry-run-first and never performed automatically; native Codex/OpenCode capture remains active.
 - Full-page SQLCipher encryption is not provided by Node SQLite. Sensitive evidence columns are encrypted, while indexed metadata is intentionally plaintext and reported as such.
-- A fresh final rendered-browser pass could not run because no in-app browser surface was attached to the audit session. The production HTML/API, responsive CSS, keyboard controls, focus styles, reduced-motion rule, virtualization, and security headers passed code/build/live checks; an earlier rendered pass in the same implementation effort covered desktop/mobile replay and inspector interactions.
+- The in-app interactive browser surface was not attached to the audit environment. Repository-owned Playwright Chromium nevertheless ran the full deterministic production flow successfully on desktop and phone viewports, captured real screenshots, and reported no browser-console errors, failed requests, or horizontal overflow. This proves the scripted primary journey, not every browser/assistive-technology combination.
+
+## GitHub publication readiness
+
+The repository now includes an MIT license, contribution and conduct guides, changelog, security policy, issue and pull-request templates, troubleshooting and release documentation, Node/npm version declarations, environment reference, Biome configuration, pinned-action CI, Dependabot, deterministic demo, browser tests, and real documentation screenshots. Docker is intentionally excluded because useful capture depends on direct host agent stores, local filesystem evidence, private modes, and the macOS Keychain; native loopback Node startup is the supported production deployment.

@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a reproducible recorder, adapter, CLI, or replay-console problem.
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: Remove source code, prompts, secrets, usernames, and local paths before sharing output.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: 0.2.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Codex adapter
+        - OpenCode adapter
+        - Claude Code hooks
+        - Cursor hooks
+        - Compatible hook API
+        - Replay console
+        - CLI or bundles
+        - Storage or migration
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include commands and sanitized input only.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics
+      description: Prefer the relevant portion of `npm run doctor`; never attach a recorder database or raw bundle.

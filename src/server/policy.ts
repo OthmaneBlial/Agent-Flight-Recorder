@@ -12,7 +12,8 @@ export interface EvidencePolicyOverrides {
   snapshotMaxBytes?: number;
 }
 
-const SENSITIVE_KEY = /(^|_)(authorization|auth|password|passwd|secret|api_?key|access_?key|private_?key|client_?secret|cookie|session_?token|bearer_?token)($|_)/i;
+const SENSITIVE_KEY =
+  /(^|_)(authorization|auth|password|passwd|secret|api_?key|access_?key|private_?key|client_?secret|cookie|session_?token|bearer_?token)($|_)/i;
 const INLINE_PATTERNS: Array<[RegExp, string]> = [
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, '[REDACTED:private-key]'],
   [/\b(Bearer\s+)[A-Za-z0-9._~+/=-]{12,}/gi, '$1[REDACTED]'],
@@ -23,9 +24,9 @@ const INLINE_PATTERNS: Array<[RegExp, string]> = [
 
 export function loadEvidencePolicy(overrides: EvidencePolicyOverrides = {}, environment: NodeJS.ProcessEnv = process.env): EvidencePolicy {
   const redactionMode = overrides.redactionMode ?? parseMode(environment.AFR_REDACTION_MODE);
-  const rawRetentionDays = overrides.rawRetentionDays ?? positiveInteger(environment.AFR_RAW_RETENTION_DAYS);
-  const snapshotRetentionDays = overrides.snapshotRetentionDays ?? positiveInteger(environment.AFR_SNAPSHOT_RETENTION_DAYS);
-  const snapshotMaxBytes = overrides.snapshotMaxBytes ?? positiveInteger(environment.AFR_SNAPSHOT_MAX_BYTES) ?? 2 * 1024 * 1024;
+  const rawRetentionDays = overrides.rawRetentionDays ?? positiveInteger('AFR_RAW_RETENTION_DAYS', environment.AFR_RAW_RETENTION_DAYS);
+  const snapshotRetentionDays = overrides.snapshotRetentionDays ?? positiveInteger('AFR_SNAPSHOT_RETENTION_DAYS', environment.AFR_SNAPSHOT_RETENTION_DAYS);
+  const snapshotMaxBytes = overrides.snapshotMaxBytes ?? positiveInteger('AFR_SNAPSHOT_MAX_BYTES', environment.AFR_SNAPSHOT_MAX_BYTES) ?? 2 * 1024 * 1024;
   return {
     redactionMode,
     rawRetentionDays,
@@ -84,11 +85,14 @@ export function redactString(value: string): string {
 }
 
 function parseMode(value: string | undefined): EvidencePolicySummary['redactionMode'] {
-  return value === 'mask' || value === 'strict' ? value : 'off';
+  if (!value) return 'mask';
+  if (value === 'off' || value === 'mask' || value === 'strict') return value;
+  throw new Error('AFR_REDACTION_MODE must be one of: off, mask, strict.');
 }
 
-function positiveInteger(value: string | undefined): number | null {
+function positiveInteger(name: string, value: string | undefined): number | null {
   if (!value) return null;
   const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${name} must be a positive integer.`);
+  return parsed;
 }

@@ -3,7 +3,21 @@ import { chmodSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { createTwoFilesPatch } from 'diff';
-import type { CallAttempt, CallLineage, CaptureHealth, CodeEvolution, EventKind, FileSnapshot, Overview, PermissionFlow, PermissionTrace, RecorderEvent, RecordedSession, SessionComparison, SessionMetrics } from '../shared/types.js';
+import type {
+  CallAttempt,
+  CallLineage,
+  CaptureHealth,
+  CodeEvolution,
+  EventKind,
+  FileSnapshot,
+  Overview,
+  PermissionFlow,
+  PermissionTrace,
+  RecorderEvent,
+  RecordedSession,
+  SessionComparison,
+  SessionMetrics,
+} from '../shared/types.js';
 import type { EventInput, FileSnapshotInput, RetentionOptions, RetentionResult, SessionInput, SnapshotEvidence, SourceState } from './model.js';
 import { callCorrelationKey, callSignature, permissionSignature } from './correlation.js';
 import { loadEvidencePolicy, policySummary, sanitizeEvent, type EvidencePolicy } from './policy.js';
@@ -263,10 +277,12 @@ export class RecorderStore {
     if (previousSchema < 5) this.backfillPermissionFlows();
     if (previousSchema < 6) this.encryptSensitiveEvidence();
     else this.verifyEncryptionCanary();
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT INTO recorder_meta (key, value) VALUES ('schema_version', '7')
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run();
+    `)
+      .run();
   }
 
   private backfillEventIndexColumns(): void {
@@ -302,10 +318,12 @@ export class RecorderStore {
         );
       }
       const canary = this.vault.sealText('agent-flight-recorder', 'store-canary');
-      this.db.prepare(`
+      this.db
+        .prepare(`
         INSERT INTO recorder_meta (key, value) VALUES ('encryption_canary', ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
-      `).run(canary);
+      `)
+        .run(canary);
     });
   }
 
@@ -317,7 +335,8 @@ export class RecorderStore {
   }
 
   private backfillLegacyCaptureGaps(): void {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(`
       SELECT e.* FROM events e
       WHERE e.kind = 'file'
         AND (e.phase = 'call' OR e.call_id IS NULL)
@@ -333,10 +352,16 @@ export class RecorderStore {
             AND (gap.parent_id = e.id OR (e.call_id IS NOT NULL AND gap.call_id = e.call_id AND gap.path IS e.path))
         )
       ORDER BY e.session_id, e.sequence
-    `).all() as DbRow[];
+    `)
+      .all() as DbRow[];
     for (const row of rows) {
       const event = rowToEvent(row, false, this.vault) as EventInput;
-      this.insertCaptureGap(event, 'legacy_snapshot_unavailable', 'This file action predates snapshot capture; exact before/after contents are unavailable.', event.path);
+      this.insertCaptureGap(
+        event,
+        'legacy_snapshot_unavailable',
+        'This file action predates snapshot capture; exact before/after contents are unavailable.',
+        event.path,
+      );
     }
   }
 
@@ -368,7 +393,8 @@ export class RecorderStore {
   }
 
   upsertSession(session: SessionInput): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT INTO sessions (
         id, provider, native_session_id, title, started_at, ended_at, updated_at, cwd,
         project_name, agent_version, model, source_path, status
@@ -383,67 +409,71 @@ export class RecorderStore {
         model = COALESCE(excluded.model, sessions.model),
         source_path = excluded.source_path,
         status = excluded.status
-    `).run(
-      session.id,
-      session.provider,
-      session.nativeSessionId,
-      session.title,
-      session.startedAt,
-      session.endedAt ?? null,
-      session.updatedAt,
-      session.cwd ?? null,
-      session.projectName,
-      session.agentVersion ?? null,
-      session.model ?? null,
-      session.sourcePath,
-      session.status,
-    );
+    `)
+      .run(
+        session.id,
+        session.provider,
+        session.nativeSessionId,
+        session.title,
+        session.startedAt,
+        session.endedAt ?? null,
+        session.updatedAt,
+        session.cwd ?? null,
+        session.projectName,
+        session.agentVersion ?? null,
+        session.model ?? null,
+        session.sourcePath,
+        session.status,
+      );
   }
 
   insertEvent(event: EventInput): boolean {
     const persisted = sanitizeEvent(event, this.policy);
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       INSERT OR IGNORE INTO events (
         id, session_id, sequence, timestamp, duration_ms, kind, title, summary, status,
         actor, turn_id, call_id, parent_id, tokens_in, tokens_out, cached_tokens,
         cost_usd, command, path, payload_json, raw_json, phase, gap_code, derived_by, provider_event
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      persisted.id,
-      persisted.sessionId,
-      persisted.sequence,
-      persisted.timestamp,
-      persisted.durationMs,
-      persisted.kind,
-      persisted.title,
-      persisted.summary,
-      persisted.status,
-      persisted.actor,
-      persisted.turnId,
-      persisted.callId,
-      persisted.parentId,
-      persisted.tokensIn,
-      persisted.tokensOut,
-      persisted.cachedTokens,
-      persisted.costUsd,
-      persisted.command,
-      persisted.path,
-      this.vault.sealText(JSON.stringify(persisted.payload ?? {}), `event:${persisted.id}:payload`),
-      persisted.raw === undefined ? null : this.vault.sealText(JSON.stringify(persisted.raw), `event:${persisted.id}:raw`),
-      textValue(record(persisted.payload).phase),
-      textValue(record(persisted.payload).code),
-      textValue(record(persisted.payload).derivedBy),
-      textValue(record(persisted.payload).providerEvent),
-    );
+    `)
+      .run(
+        persisted.id,
+        persisted.sessionId,
+        persisted.sequence,
+        persisted.timestamp,
+        persisted.durationMs,
+        persisted.kind,
+        persisted.title,
+        persisted.summary,
+        persisted.status,
+        persisted.actor,
+        persisted.turnId,
+        persisted.callId,
+        persisted.parentId,
+        persisted.tokensIn,
+        persisted.tokensOut,
+        persisted.cachedTokens,
+        persisted.costUsd,
+        persisted.command,
+        persisted.path,
+        this.vault.sealText(JSON.stringify(persisted.payload ?? {}), `event:${persisted.id}:payload`),
+        persisted.raw === undefined ? null : this.vault.sealText(JSON.stringify(persisted.raw), `event:${persisted.id}:raw`),
+        textValue(record(persisted.payload).phase),
+        textValue(record(persisted.payload).code),
+        textValue(record(persisted.payload).derivedBy),
+        textValue(record(persisted.payload).providerEvent),
+      );
     return Number(result.changes) > 0;
   }
 
   incrementSessionMetrics(event: EventInput, observation?: CallObservation | null): void {
-    const payload = event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload) ? event.payload as Record<string, unknown> : {};
+    const payload = event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload) ? (event.payload as Record<string, unknown>) : {};
     const isCall = payload.phase === 'call';
     const isToolCall = (observation?.created ?? isCall) && ['tool', 'terminal', 'file', 'test'].includes(event.kind);
     const failureDelta = observation ? observation.failureDelta : event.status === 'error' ? 1 : 0;
-    this.db.prepare(`
+    this.db
+      .prepare(`
       UPDATE sessions SET
         event_count = event_count + 1,
         tool_calls = tool_calls + ?,
@@ -459,21 +489,22 @@ export class RecorderStore {
         cost_usd = cost_usd + COALESCE(?, 0),
         updated_at = MAX(updated_at, ?)
       WHERE id = ?
-    `).run(
-      isToolCall ? 1 : 0,
-      isToolCall && event.kind === 'file' ? 1 : 0,
-      isToolCall && event.kind === 'terminal' ? 1 : 0,
-      isToolCall && event.kind === 'test' ? 1 : 0,
-      failureDelta,
-      event.kind === 'retry' ? 1 : 0,
-      event.kind === 'gap' ? 1 : 0,
-      event.tokensIn,
-      event.tokensOut,
-      event.cachedTokens,
-      event.costUsd,
-      event.timestamp,
-      event.sessionId,
-    );
+    `)
+      .run(
+        isToolCall ? 1 : 0,
+        isToolCall && event.kind === 'file' ? 1 : 0,
+        isToolCall && event.kind === 'terminal' ? 1 : 0,
+        isToolCall && event.kind === 'test' ? 1 : 0,
+        failureDelta,
+        event.kind === 'retry' ? 1 : 0,
+        event.kind === 'gap' ? 1 : 0,
+        event.tokensIn,
+        event.tokensOut,
+        event.cachedTokens,
+        event.costUsd,
+        event.timestamp,
+        event.sessionId,
+      );
   }
 
   insertEventWithMetrics(event: EventInput): boolean {
@@ -493,57 +524,65 @@ export class RecorderStore {
       this.db.prepare(`DELETE FROM events WHERE session_id = ? AND kind = 'retry' AND derived_by = 'call-correlation-v1'`).run(sessionId);
       this.db.prepare(`DELETE FROM call_event_links WHERE event_id IN (SELECT id FROM events WHERE session_id = ?)`).run(sessionId);
       this.db.prepare('DELETE FROM call_attempts WHERE session_id = ?').run(sessionId);
-      const rows = this.db.prepare(`
+      const rows = this.db
+        .prepare(`
         SELECT * FROM events
         WHERE session_id = ? AND phase IN ('call', 'result')
         ORDER BY sequence ASC
-      `).all(sessionId) as DbRow[];
+      `)
+        .all(sessionId) as DbRow[];
       for (const row of rows) this.observeCallEvent(rowToEvent(row, false, this.vault) as EventInput);
       this.refreshSessionMetrics(sessionId);
     });
   }
 
   private observeCallEvent(event: EventInput): CallObservation | null {
-    const payload = event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload) ? event.payload as Record<string, unknown> : {};
+    const payload = event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload) ? (event.payload as Record<string, unknown>) : {};
     const phase = payload.phase;
     if (phase === 'call' && ['tool', 'terminal', 'file', 'test'].includes(event.kind)) {
       const signature = callSignature(event);
       const correlationKey = callCorrelationKey(event);
       const existing = this.findFacetAttempt(event, correlationKey);
       if (existing) {
-        if (event.callId && existing.call_id === null) this.db.prepare('UPDATE call_attempts SET call_id = ? WHERE event_id = ?').run(event.callId, existing.event_id);
+        if (event.callId && existing.call_id === null)
+          this.db.prepare('UPDATE call_attempts SET call_id = ? WHERE event_id = ?').run(event.callId, existing.event_id);
         if (String(existing.outcome) === 'unknown' && payload.resultExpected !== false) {
           this.db.prepare("UPDATE call_attempts SET outcome = 'running', completed_at = NULL WHERE event_id = ?").run(existing.event_id);
         }
         this.linkCallEvent(event.id, String(existing.event_id), 'call-facet');
         return { created: false, failureDelta: 0 };
       }
-      const previous = this.db.prepare(`
+      const previous = this.db
+        .prepare(`
         SELECT ca.*, e.turn_id previous_turn_id, e.timestamp previous_timestamp
         FROM call_attempts ca JOIN events e ON e.id = ca.event_id
         WHERE ca.session_id = ? AND ca.signature = ? ORDER BY ca.attempt DESC LIMIT 1
-      `).get(event.sessionId, signature) as DbRow | undefined;
+      `)
+        .get(event.sessionId, signature) as DbRow | undefined;
       const attempt = previous ? Number(previous.attempt) + 1 : 1;
       const terminalOutcome = payload.resultExpected === false ? 'unknown' : ['success', 'error', 'blocked'].includes(event.status) ? event.status : 'running';
-      this.db.prepare(`
+      this.db
+        .prepare(`
         INSERT OR IGNORE INTO call_attempts (
           event_id, session_id, call_id, signature, correlation_key, attempt, previous_event_id,
           result_event_id, outcome, started_at, completed_at, start_observed
         ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)
-      `).run(
-        event.id,
-        event.sessionId,
-        event.callId,
-        signature,
-        correlationKey,
-        attempt,
-        previous?.event_id ?? null,
-        terminalOutcome,
-        event.timestamp,
-        terminalOutcome === 'running' ? null : event.timestamp,
-      );
+      `)
+        .run(
+          event.id,
+          event.sessionId,
+          event.callId,
+          signature,
+          correlationKey,
+          attempt,
+          previous?.event_id ?? null,
+          terminalOutcome,
+          event.timestamp,
+          terminalOutcome === 'running' ? null : event.timestamp,
+        );
       this.linkCallEvent(event.id, event.id, 'call');
-      if (previous && ['error', 'blocked'].includes(String(previous.outcome)) && shouldInferRetry(previous, event)) this.insertDerivedRetry(event, String(previous.event_id), signature, attempt);
+      if (previous && ['error', 'blocked'].includes(String(previous.outcome)) && shouldInferRetry(previous, event))
+        this.insertDerivedRetry(event, String(previous.event_id), signature, attempt);
       return { created: true, failureDelta: isFailedCallOutcome(terminalOutcome) ? 1 : 0 };
     }
     if (phase === 'result' && ['tool', 'terminal', 'file', 'test'].includes(event.kind)) {
@@ -554,25 +593,43 @@ export class RecorderStore {
       if (attempt) {
         const mergedOutcome = mergeCallOutcome(String(attempt.outcome), outcome);
         const replaceResult = callOutcomeRank(outcome) >= callOutcomeRank(String(attempt.outcome));
-        this.db.prepare(`
+        this.db
+          .prepare(`
           UPDATE call_attempts SET call_id = COALESCE(call_id, ?),
             result_event_id = CASE WHEN ? THEN ? ELSE COALESCE(result_event_id, ?) END,
             outcome = ?, completed_at = MAX(COALESCE(completed_at, ?), ?)
           WHERE event_id = ?
-        `).run(event.callId, replaceResult ? 1 : 0, event.id, event.id, mergedOutcome, event.timestamp, event.timestamp, attempt.event_id);
+        `)
+          .run(event.callId, replaceResult ? 1 : 0, event.id, event.id, mergedOutcome, event.timestamp, event.timestamp, attempt.event_id);
         this.linkCallEvent(event.id, String(attempt.event_id), 'result');
         return { created: false, failureDelta: isFailedCallOutcome(mergedOutcome) && !isFailedCallOutcome(String(attempt.outcome)) ? 1 : 0 };
       }
-      const previous = this.db.prepare(`
+      const previous = this.db
+        .prepare(`
         SELECT * FROM call_attempts WHERE session_id = ? AND signature = ? ORDER BY attempt DESC LIMIT 1
-      `).get(event.sessionId, signature) as DbRow | undefined;
+      `)
+        .get(event.sessionId, signature) as DbRow | undefined;
       const ordinal = previous ? Number(previous.attempt) + 1 : 1;
-      this.db.prepare(`
+      this.db
+        .prepare(`
         INSERT OR IGNORE INTO call_attempts (
           event_id, session_id, call_id, signature, correlation_key, attempt, previous_event_id,
           result_event_id, outcome, started_at, completed_at, start_observed
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-      `).run(event.id, event.sessionId, event.callId, signature, correlationKey, ordinal, previous?.event_id ?? null, event.id, outcome, event.timestamp, event.timestamp);
+      `)
+        .run(
+          event.id,
+          event.sessionId,
+          event.callId,
+          signature,
+          correlationKey,
+          ordinal,
+          previous?.event_id ?? null,
+          event.id,
+          outcome,
+          event.timestamp,
+          event.timestamp,
+        );
       this.linkCallEvent(event.id, event.id, 'orphan-result');
       return { created: true, failureDelta: isFailedCallOutcome(outcome) ? 1 : 0 };
     }
@@ -581,38 +638,48 @@ export class RecorderStore {
 
   private findFacetAttempt(event: EventInput, correlationKey: string): DbRow | undefined {
     if (event.callId) {
-      const byId = this.db.prepare(`
+      const byId = this.db
+        .prepare(`
         SELECT ca.*, e.provider_event attempt_provider_event, e.turn_id attempt_turn_id, e.timestamp attempt_timestamp
         FROM call_attempts ca JOIN events e ON e.id = ca.event_id
         WHERE ca.session_id = ? AND ca.call_id = ? ORDER BY ca.attempt DESC LIMIT 1
-      `).get(event.sessionId, event.callId) as DbRow | undefined;
+      `)
+        .get(event.sessionId, event.callId) as DbRow | undefined;
       if (byId) return byId;
     }
-    const candidate = this.db.prepare(`
+    const candidate = this.db
+      .prepare(`
       SELECT ca.*, e.provider_event attempt_provider_event, e.turn_id attempt_turn_id, e.timestamp attempt_timestamp
       FROM call_attempts ca JOIN events e ON e.id = ca.event_id
       WHERE ca.session_id = ? AND ca.correlation_key = ? AND ca.outcome IN ('running', 'unknown')
       ORDER BY ca.started_at DESC LIMIT 1
-    `).get(event.sessionId, correlationKey) as DbRow | undefined;
+    `)
+      .get(event.sessionId, correlationKey) as DbRow | undefined;
     if (!candidate) return undefined;
     const withinWindow = Math.abs(Date.parse(event.timestamp) - Date.parse(String(candidate.attempt_timestamp))) <= 30_000;
     const sameTurn = event.turnId === null || candidate.attempt_turn_id === null || event.turnId === String(candidate.attempt_turn_id);
-    return withinWindow && sameTurn && areProviderFacets(textValue(candidate.attempt_provider_event), textValue(record(event.payload).providerEvent)) ? candidate : undefined;
+    return withinWindow && sameTurn && areProviderFacets(textValue(candidate.attempt_provider_event), textValue(record(event.payload).providerEvent))
+      ? candidate
+      : undefined;
   }
 
   private findResultAttempt(event: EventInput, correlationKey: string): DbRow | undefined {
     if (event.callId) {
-      const byId = this.db.prepare(`
+      const byId = this.db
+        .prepare(`
         SELECT * FROM call_attempts WHERE session_id = ? AND call_id = ? ORDER BY attempt DESC LIMIT 1
-      `).get(event.sessionId, event.callId) as DbRow | undefined;
+      `)
+        .get(event.sessionId, event.callId) as DbRow | undefined;
       if (byId) return byId;
     }
-    const candidate = this.db.prepare(`
+    const candidate = this.db
+      .prepare(`
       SELECT ca.*, e.turn_id attempt_turn_id
       FROM call_attempts ca JOIN events e ON e.id = ca.event_id
       WHERE ca.session_id = ? AND ca.correlation_key = ? AND ca.started_at <= ?
       ORDER BY CASE WHEN ca.outcome = 'running' THEN 0 ELSE 1 END, ca.started_at DESC LIMIT 1
-    `).get(event.sessionId, correlationKey, event.timestamp) as DbRow | undefined;
+    `)
+      .get(event.sessionId, correlationKey, event.timestamp) as DbRow | undefined;
     if (!candidate) return undefined;
     const elapsedMs = Math.max(0, Date.parse(event.timestamp) - Date.parse(String(candidate.started_at)));
     const sameTurn = event.turnId !== null && candidate.attempt_turn_id !== null && event.turnId === String(candidate.attempt_turn_id);
@@ -622,9 +689,11 @@ export class RecorderStore {
   }
 
   private linkCallEvent(eventId: string, attemptEventId: string, role: string): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT OR IGNORE INTO call_event_links (event_id, attempt_event_id, role) VALUES (?, ?, ?)
-    `).run(eventId, attemptEventId, role);
+    `)
+      .run(eventId, attemptEventId, role);
   }
 
   private insertDerivedRetry(event: EventInput, previousEventId: string, signature: string, attempt: number): void {
@@ -663,21 +732,28 @@ export class RecorderStore {
   getCallLineage(eventId: string): CallLineage | null {
     const event = this.getEvent(eventId);
     if (!event) return null;
-    let current = this.db.prepare(`
+    let current = this.db
+      .prepare(`
       SELECT ca.*, (SELECT COUNT(*) FROM call_event_links links WHERE links.attempt_event_id = ca.event_id) facets
       FROM call_attempts ca LEFT JOIN call_event_links link ON link.attempt_event_id = ca.event_id
       WHERE ca.event_id = ? OR ca.result_event_id = ? OR link.event_id = ? LIMIT 1
-    `).get(eventId, eventId, eventId) as DbRow | undefined;
-    if (!current && event.kind === 'retry' && event.parentId) current = this.db.prepare(`
+    `)
+      .get(eventId, eventId, eventId) as DbRow | undefined;
+    if (!current && event.kind === 'retry' && event.parentId)
+      current = this.db
+        .prepare(`
       SELECT ca.*, (SELECT COUNT(*) FROM call_event_links links WHERE links.attempt_event_id = ca.event_id) facets
       FROM call_attempts ca LEFT JOIN call_event_links link ON link.attempt_event_id = ca.event_id
       WHERE ca.event_id = ? OR link.event_id = ? LIMIT 1
-    `).get(event.parentId, event.parentId) as DbRow | undefined;
+    `)
+        .get(event.parentId, event.parentId) as DbRow | undefined;
     if (!current) return { eventId, current: null, attempts: [] };
-    const attempts = this.db.prepare(`
+    const attempts = this.db
+      .prepare(`
       SELECT ca.*, (SELECT COUNT(*) FROM call_event_links links WHERE links.attempt_event_id = ca.event_id) facets
       FROM call_attempts ca WHERE session_id = ? AND signature = ? ORDER BY attempt ASC
-    `).all(current.session_id, current.signature) as DbRow[];
+    `)
+      .all(current.session_id, current.signature) as DbRow[];
     return { eventId, current: rowToCallAttempt(current), attempts: attempts.map(rowToCallAttempt) };
   }
 
@@ -702,56 +778,111 @@ export class RecorderStore {
     if (event.kind === 'permission') {
       if (phase === 'request') {
         this.insertPermissionFlow({
-          requestEventId: event.id, sessionId: event.sessionId, signature, callId: event.callId,
-          tool, outcome: 'pending', assurance: 'unresolved', decisionEventId: null,
-          requestedAt: event.timestamp, decidedAt: null, providerEvent, reason,
+          requestEventId: event.id,
+          sessionId: event.sessionId,
+          signature,
+          callId: event.callId,
+          tool,
+          outcome: 'pending',
+          assurance: 'unresolved',
+          decisionEventId: null,
+          requestedAt: event.timestamp,
+          decidedAt: null,
+          providerEvent,
+          reason,
         });
         return;
       }
       if (phase === 'result') {
         const outcome: PermissionFlow['outcome'] = event.status === 'blocked' ? 'denied' : event.status === 'success' ? 'allowed' : 'unknown';
         const updated = this.resolvePermissionFlow(event, signature, outcome, 'explicit', reason);
-        if (!updated) this.insertPermissionFlow({
-          requestEventId: event.id, sessionId: event.sessionId, signature, callId: event.callId,
-          tool, outcome, assurance: 'explicit', decisionEventId: event.id,
-          requestedAt: event.timestamp, decidedAt: event.timestamp, providerEvent, reason,
-        });
+        if (!updated)
+          this.insertPermissionFlow({
+            requestEventId: event.id,
+            sessionId: event.sessionId,
+            signature,
+            callId: event.callId,
+            tool,
+            outcome,
+            assurance: 'explicit',
+            decisionEventId: event.id,
+            requestedAt: event.timestamp,
+            decidedAt: event.timestamp,
+            providerEvent,
+            reason,
+          });
         return;
       }
       this.insertPermissionFlow({
-        requestEventId: event.id, sessionId: event.sessionId, signature: null, callId: event.callId,
-        tool, outcome: 'policy', assurance: 'policy', decisionEventId: event.id,
-        requestedAt: event.timestamp, decidedAt: event.timestamp, providerEvent, reason,
+        requestEventId: event.id,
+        sessionId: event.sessionId,
+        signature: null,
+        callId: event.callId,
+        tool,
+        outcome: 'policy',
+        assurance: 'policy',
+        decisionEventId: event.id,
+        requestedAt: event.timestamp,
+        decidedAt: event.timestamp,
+        providerEvent,
+        reason,
       });
       return;
     }
 
     if (permissionFailure) {
       const updated = this.resolvePermissionFlow(event, signature, 'denied', 'explicit', reason ?? 'Provider reported permission_denied.');
-      if (!updated) this.insertPermissionFlow({
-        requestEventId: event.id, sessionId: event.sessionId, signature, callId: event.callId,
-        tool, outcome: 'denied', assurance: 'explicit', decisionEventId: event.id,
-        requestedAt: event.timestamp, decidedAt: event.timestamp, providerEvent, reason: reason ?? 'Provider reported permission_denied.',
-      });
+      if (!updated)
+        this.insertPermissionFlow({
+          requestEventId: event.id,
+          sessionId: event.sessionId,
+          signature,
+          callId: event.callId,
+          tool,
+          outcome: 'denied',
+          assurance: 'explicit',
+          decisionEventId: event.id,
+          requestedAt: event.timestamp,
+          decidedAt: event.timestamp,
+          providerEvent,
+          reason: reason ?? 'Provider reported permission_denied.',
+        });
       return;
     }
 
     if (phase === 'result' && ['tool', 'terminal', 'file', 'test'].includes(event.kind)) {
-      this.resolvePermissionFlow(event, signature, 'executed', 'inferred', 'A correlated tool result was observed; the provider did not expose the manual permission response.');
+      this.resolvePermissionFlow(
+        event,
+        signature,
+        'executed',
+        'inferred',
+        'A correlated tool result was observed; the provider did not expose the manual permission response.',
+      );
     }
   }
 
   private insertPermissionFlow(flow: PermissionFlow): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT OR IGNORE INTO permission_flows (
         request_event_id, session_id, signature, call_id, tool, outcome, assurance,
         decision_event_id, requested_at, decided_at, provider_event, reason
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      flow.requestEventId, flow.sessionId, flow.signature, flow.callId, flow.tool,
-      flow.outcome, flow.assurance, flow.decisionEventId, flow.requestedAt,
-      flow.decidedAt, flow.providerEvent, flow.reason,
-    );
+    `)
+      .run(
+        flow.requestEventId,
+        flow.sessionId,
+        flow.signature,
+        flow.callId,
+        flow.tool,
+        flow.outcome,
+        flow.assurance,
+        flow.decisionEventId,
+        flow.requestedAt,
+        flow.decidedAt,
+        flow.providerEvent,
+        flow.reason,
+      );
   }
 
   private resolvePermissionFlow(
@@ -761,51 +892,66 @@ export class RecorderStore {
     assurance: PermissionFlow['assurance'],
     reason: string | null,
   ): boolean {
-    const pending = this.db.prepare(`
+    const pending = this.db
+      .prepare(`
       SELECT request_event_id FROM permission_flows
       WHERE session_id = ? AND outcome IN ('pending', 'unknown')
         AND ((? IS NOT NULL AND call_id = ?) OR signature = ?)
         AND requested_at <= ?
       ORDER BY CASE WHEN ? IS NOT NULL AND call_id = ? THEN 0 ELSE 1 END, requested_at DESC LIMIT 1
-    `).get(event.sessionId, event.callId, event.callId, signature, event.timestamp, event.callId, event.callId) as DbRow | undefined;
+    `)
+      .get(event.sessionId, event.callId, event.callId, signature, event.timestamp, event.callId, event.callId) as DbRow | undefined;
     if (!pending) return false;
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       UPDATE permission_flows SET call_id = COALESCE(?, call_id), outcome = ?, assurance = ?,
         decision_event_id = ?, decided_at = ?, reason = ?
       WHERE request_event_id = ?
-    `).run(event.callId, outcome, assurance, event.id, event.timestamp, reason, pending.request_event_id);
+    `)
+      .run(event.callId, outcome, assurance, event.id, event.timestamp, reason, pending.request_event_id);
     return Number(result.changes) > 0;
   }
 
   getPermissionTrace(eventId: string): PermissionTrace | null {
     const event = this.getEvent(eventId);
     if (!event) return null;
-    let current = this.db.prepare(`
+    let current = this.db
+      .prepare(`
       SELECT * FROM permission_flows
       WHERE request_event_id = ? OR decision_event_id = ?
       ORDER BY requested_at DESC LIMIT 1
-    `).get(eventId, eventId) as DbRow | undefined;
-    if (!current && event.callId) current = this.db.prepare(`
+    `)
+      .get(eventId, eventId) as DbRow | undefined;
+    if (!current && event.callId)
+      current = this.db
+        .prepare(`
       SELECT * FROM permission_flows WHERE session_id = ? AND call_id = ?
       ORDER BY requested_at DESC LIMIT 1
-    `).get(event.sessionId, event.callId) as DbRow | undefined;
+    `)
+        .get(event.sessionId, event.callId) as DbRow | undefined;
     if (!current && (event.kind === 'permission' || ['tool', 'terminal', 'file', 'test'].includes(event.kind))) {
-      current = this.db.prepare(`
+      current = this.db
+        .prepare(`
         SELECT * FROM permission_flows WHERE session_id = ? AND signature = ?
         ORDER BY requested_at DESC LIMIT 1
-      `).get(event.sessionId, permissionSignature(event)) as DbRow | undefined;
+      `)
+        .get(event.sessionId, permissionSignature(event)) as DbRow | undefined;
     }
     if (!current) return { eventId, current: null, flows: [] };
-    const flows = current.signature === null
-      ? [current]
-      : this.db.prepare(`
+    const flows =
+      current.signature === null
+        ? [current]
+        : (this.db
+            .prepare(`
           SELECT * FROM permission_flows WHERE session_id = ? AND signature = ? ORDER BY requested_at ASC
-        `).all(current.session_id, current.signature) as DbRow[];
+        `)
+            .all(current.session_id, current.signature) as DbRow[]);
     return { eventId, current: rowToPermissionFlow(current), flows: flows.map(rowToPermissionFlow) };
   }
 
   refreshSessionMetrics(sessionId: string): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       UPDATE sessions SET
         event_count = (SELECT COUNT(*) FROM events WHERE session_id = ?),
         tool_calls = (SELECT COUNT(*) FROM call_attempts WHERE session_id = ?),
@@ -825,7 +971,8 @@ export class RecorderStore {
         cost_usd = COALESCE((SELECT SUM(cost_usd) FROM events WHERE session_id = ?), 0),
         updated_at = COALESCE((SELECT MAX(timestamp) FROM events WHERE session_id = ?), updated_at)
       WHERE id = ?
-    `).run(...Array(15).fill(sessionId));
+    `)
+      .run(...Array(15).fill(sessionId));
   }
 
   getSource(path: string): SourceState | null {
@@ -844,7 +991,8 @@ export class RecorderStore {
   }
 
   setSource(source: SourceState): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT INTO sources (source_path, provider, session_id, byte_offset, size, mtime_ms, updated_at, adapter_version)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(source_path) DO UPDATE SET
@@ -855,16 +1003,8 @@ export class RecorderStore {
         mtime_ms = excluded.mtime_ms,
         updated_at = excluded.updated_at,
         adapter_version = excluded.adapter_version
-    `).run(
-      source.sourcePath,
-      source.provider,
-      source.sessionId,
-      source.byteOffset,
-      source.size,
-      source.mtimeMs,
-      source.updatedAt,
-      source.adapterVersion,
-    );
+    `)
+      .run(source.sourcePath, source.provider, source.sessionId, source.byteOffset, source.size, source.mtimeMs, source.updatedAt, source.adapterVersion);
   }
 
   clearSource(path: string): void {
@@ -874,28 +1014,35 @@ export class RecorderStore {
   }
 
   setLastIngestedAt(timestamp: string): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT INTO recorder_meta (key, value) VALUES ('last_ingested_at', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(timestamp);
+    `)
+      .run(timestamp);
   }
 
   reconcileSessionStatuses(now = Date.now()): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       UPDATE sessions SET status = CASE
         WHEN COALESCE((SELECT mtime_ms FROM sources WHERE sources.source_path = sessions.source_path), 0) >= ? THEN 'live'
         ELSE 'unknown'
       END
       WHERE provider = 'codex'
-    `).run(now - 15_000);
-    this.db.prepare(`
+    `)
+      .run(now - 15_000);
+    this.db
+      .prepare(`
       UPDATE sessions SET status = 'unknown'
       WHERE source_path LIKE 'hook:%' AND status = 'live' AND updated_at < ?
-    `).run(new Date(now - 5 * 60_000).toISOString());
+    `)
+      .run(new Date(now - 5 * 60_000).toISOString());
   }
 
   recordStaleCallGaps(now = Date.now(), staleAfterMs = 5 * 60_000): number {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(`
       SELECT call.* FROM call_attempts attempt
       JOIN events call ON call.id = attempt.event_id
       WHERE attempt.outcome = 'running' AND attempt.started_at < ?
@@ -905,17 +1052,20 @@ export class RecorderStore {
             AND gap.gap_code = 'tool_result_unavailable'
         )
       ORDER BY call.timestamp
-    `).all(new Date(now - staleAfterMs).toISOString()) as DbRow[];
+    `)
+      .all(new Date(now - staleAfterMs).toISOString()) as DbRow[];
     let inserted = 0;
     for (const row of rows) {
       const event = rowToEvent(row, false, this.vault) as EventInput;
-      if (this.insertCaptureGap(event, 'tool_result_unavailable', 'No correlated tool result reached the recorder within five minutes.', event.path)) inserted += 1;
+      if (this.insertCaptureGap(event, 'tool_result_unavailable', 'No correlated tool result reached the recorder within five minutes.', event.path))
+        inserted += 1;
     }
     return inserted;
   }
 
   recordUncoveredFileGaps(): number {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(`
       WITH file_events AS (
         SELECT id FROM events WHERE kind = 'file'
       ), evidence_events AS (
@@ -936,7 +1086,8 @@ export class RecorderStore {
       LEFT JOIN covered_ids covered ON covered.id = e.id
       WHERE e.kind = 'file' AND covered.id IS NULL
       ORDER BY e.session_id, e.sequence
-    `).all() as DbRow[];
+    `)
+      .all() as DbRow[];
     let inserted = 0;
     for (const row of rows) {
       const event = rowToEvent(row, false, this.vault) as EventInput;
@@ -949,23 +1100,27 @@ export class RecorderStore {
   }
 
   recordStalePermissionUnknowns(now = Date.now(), staleAfterMs = 5 * 60_000): number {
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       UPDATE permission_flows SET outcome = 'unknown', assurance = 'unresolved',
         reason = COALESCE(reason, 'No explicit decision or correlated execution evidence reached the recorder within five minutes.')
       WHERE outcome = 'pending' AND requested_at < ?
-    `).run(new Date(now - staleAfterMs).toISOString());
+    `)
+      .run(new Date(now - staleAfterMs).toISOString());
     return Number(result.changes);
   }
 
   recordHeartbeat(component: string, detail: string | null = null, timestamp = new Date().toISOString()): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT INTO recorder_heartbeats (component, process_id, started_at, last_seen_at, detail)
       VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(component) DO UPDATE SET
         process_id = excluded.process_id,
         last_seen_at = excluded.last_seen_at,
         detail = excluded.detail
-    `).run(component, process.pid, timestamp, timestamp, detail);
+    `)
+      .run(component, process.pid, timestamp, timestamp, detail);
   }
 
   dataVersion(): number {
@@ -974,39 +1129,44 @@ export class RecorderStore {
   }
 
   putContentBlob(hash: string, content: Buffer, mime: string, encoding = 'utf8', createdAt = new Date().toISOString()): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT OR IGNORE INTO content_blobs (hash, byte_size, mime, encoding, content, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(hash, content.byteLength, mime, encoding, Buffer.from(this.vault.sealText(content.toString('base64'), `blob:${hash}`)), createdAt);
+    `)
+      .run(hash, content.byteLength, mime, encoding, Buffer.from(this.vault.sealText(content.toString('base64'), `blob:${hash}`)), createdAt);
   }
 
   insertFileSnapshot(snapshot: FileSnapshotInput): boolean {
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       INSERT OR IGNORE INTO file_snapshots (
         id, event_id, session_id, sequence, path, phase, status, assurance, reason,
         blob_hash, byte_size, mime, file_mtime_ms, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      snapshot.id,
-      snapshot.eventId,
-      snapshot.sessionId,
-      snapshot.sequence,
-      snapshot.path,
-      snapshot.phase,
-      snapshot.status,
-      snapshot.assurance,
-      snapshot.reason ?? null,
-      snapshot.hash ?? null,
-      snapshot.byteSize ?? null,
-      snapshot.mime ?? null,
-      snapshot.fileMtimeMs ?? null,
-      snapshot.createdAt,
-    );
+    `)
+      .run(
+        snapshot.id,
+        snapshot.eventId,
+        snapshot.sessionId,
+        snapshot.sequence,
+        snapshot.path,
+        snapshot.phase,
+        snapshot.status,
+        snapshot.assurance,
+        snapshot.reason ?? null,
+        snapshot.hash ?? null,
+        snapshot.byteSize ?? null,
+        snapshot.mime ?? null,
+        snapshot.fileMtimeMs ?? null,
+        snapshot.createdAt,
+      );
     return Number(result.changes) > 0;
   }
 
   hasBeforeBoundary(event: EventInput, path: string): boolean {
-    const row = this.db.prepare(`
+    const row = this.db
+      .prepare(`
       SELECT 1 present
       FROM file_snapshots fs
       LEFT JOIN events e ON e.id = fs.event_id
@@ -1024,13 +1184,17 @@ export class RecorderStore {
           OR (fs.sequence < ? AND fs.phase IN ('after', 'observed'))
         )
       LIMIT 1
-    `).get(event.sessionId, path, event.id, event.callId, event.callId, event.sequence) as DbRow | undefined;
+    `)
+      .get(event.sessionId, path, event.id, event.callId, event.callId, event.sequence) as DbRow | undefined;
     return Boolean(row);
   }
 
   insertCaptureGap(source: EventInput, code: string, message: string, path = source.path): string | null {
     for (let offset = 1; offset <= 999; offset += 1) {
-      const id = `gap:${createHash('sha256').update(`${source.id}\u001f${code}\u001f${path ?? ''}`).digest('hex').slice(0, 24)}`;
+      const id = `gap:${createHash('sha256')
+        .update(`${source.id}\u001f${code}\u001f${path ?? ''}`)
+        .digest('hex')
+        .slice(0, 24)}`;
       const gap: EventInput = {
         id,
         sessionId: source.sessionId,
@@ -1063,10 +1227,12 @@ export class RecorderStore {
     const eventRow = this.db.prepare('SELECT * FROM events WHERE id = ?').get(eventId) as DbRow | undefined;
     if (!eventRow) return null;
     const event = rowToEvent(eventRow, false, this.vault);
-    const payloadPaths = event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload) && Array.isArray((event.payload as Record<string, unknown>).paths)
-      ? ((event.payload as Record<string, unknown>).paths as unknown[]).filter((value): value is string => typeof value === 'string' && value.length > 0)
-      : [];
-    const snapshotPathRows = this.db.prepare(`
+    const payloadPaths =
+      event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload) && Array.isArray((event.payload as Record<string, unknown>).paths)
+        ? ((event.payload as Record<string, unknown>).paths as unknown[]).filter((value): value is string => typeof value === 'string' && value.length > 0)
+        : [];
+    const snapshotPathRows = this.db
+      .prepare(`
       SELECT DISTINCT path FROM file_snapshots
       WHERE event_id = ? OR event_id IN (
         SELECT sibling.event_id
@@ -1075,11 +1241,15 @@ export class RecorderStore {
         WHERE target.event_id = ?
       )
       ORDER BY path
-    `).all(eventId, eventId) as DbRow[];
-    const availablePaths = [...new Set([event.path, ...payloadPaths, ...snapshotPathRows.map((row) => String(row.path))].filter((value): value is string => Boolean(value)))];
-    const path = requestedPath && availablePaths.includes(requestedPath) ? requestedPath : availablePaths[0] ?? null;
+    `)
+      .all(eventId, eventId) as DbRow[];
+    const availablePaths = [
+      ...new Set([event.path, ...payloadPaths, ...snapshotPathRows.map((row) => String(row.path))].filter((value): value is string => Boolean(value))),
+    ];
+    const path = requestedPath && availablePaths.includes(requestedPath) ? requestedPath : (availablePaths[0] ?? null);
     if (!path) return { eventId, path: null, availablePaths, before: null, after: null, unifiedDiff: null, diffTruncated: false, changed: null, gaps: [] };
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(`
       SELECT fs.*
       FROM file_snapshots fs
       LEFT JOIN events e ON e.id = fs.event_id
@@ -1095,16 +1265,19 @@ export class RecorderStore {
           OR (? IS NOT NULL AND e.call_id = ?)
         )
       ORDER BY fs.sequence ASC, fs.created_at ASC
-    `).all(event.sessionId, path, event.id, event.id, event.callId, event.callId) as DbRow[];
+    `)
+      .all(event.sessionId, path, event.id, event.id, event.callId, event.callId) as DbRow[];
     let beforeRow = [...rows].reverse().find((row) => String(row.phase) === 'before');
-    let afterRow = [...rows].reverse().find((row) => ['after', 'observed'].includes(String(row.phase)));
+    const afterRow = [...rows].reverse().find((row) => ['after', 'observed'].includes(String(row.phase)));
     if (!beforeRow) {
-      beforeRow = this.db.prepare(`
+      beforeRow = this.db
+        .prepare(`
         SELECT * FROM file_snapshots
         WHERE session_id = ? AND path = ? AND sequence < ?
           AND phase IN ('after', 'observed') AND status IN ('captured', 'missing')
         ORDER BY sequence DESC LIMIT 1
-      `).get(event.sessionId, path, event.sequence) as DbRow | undefined;
+      `)
+        .get(event.sessionId, path, event.sequence) as DbRow | undefined;
     }
     const before = beforeRow ? rowToSnapshot(beforeRow) : null;
     const after = afterRow ? rowToSnapshot(afterRow) : null;
@@ -1120,7 +1293,8 @@ export class RecorderStore {
       diffTruncated = Buffer.byteLength(generated) > maxDiffBytes;
       unifiedDiff = diffTruncated ? `${generated.slice(0, maxDiffBytes)}\n… DIFF TRUNCATED BY RECORDER …\n` : generated;
     }
-    const gapRows = this.db.prepare(`
+    const gapRows = this.db
+      .prepare(`
       SELECT id, payload_json FROM events
       WHERE session_id = ? AND kind = 'gap' AND path = ?
         AND (
@@ -1134,7 +1308,8 @@ export class RecorderStore {
           OR (? IS NOT NULL AND call_id = ?)
         )
       ORDER BY sequence ASC
-    `).all(event.sessionId, path, event.id, event.id, event.callId, event.callId) as DbRow[];
+    `)
+      .all(event.sessionId, path, event.id, event.id, event.callId, event.callId) as DbRow[];
     const gaps = gapRows.map((row) => {
       const payload = safeJson(this.vault.openText(String(row.payload_json), `event:${String(row.id)}:payload`)) as Record<string, unknown>;
       return { code: String(payload.code ?? 'unknown'), message: String(payload.message ?? 'Capture evidence unavailable'), eventId: String(row.id) };
@@ -1147,34 +1322,45 @@ export class RecorderStore {
       ? Number((this.db.prepare('SELECT COUNT(*) count FROM events WHERE timestamp < ? AND raw_json IS NOT NULL').get(options.rawBefore) as DbRow).count)
       : 0;
     const snapshots = options.snapshotsBefore
-      ? Number((this.db.prepare("SELECT COUNT(*) count FROM file_snapshots WHERE created_at < ? AND status = 'captured'").get(options.snapshotsBefore) as DbRow).count)
+      ? Number(
+          (this.db.prepare("SELECT COUNT(*) count FROM file_snapshots WHERE created_at < ? AND status = 'captured'").get(options.snapshotsBefore) as DbRow)
+            .count,
+        )
       : 0;
     if (!options.apply) return { rawEvents, snapshots, blobs: 0, applied: false };
     return this.transaction(() => {
       let prunedRaw = 0;
       let prunedSnapshots = 0;
       if (options.rawBefore) {
-        const result = this.db.prepare(`
+        const result = this.db
+          .prepare(`
           UPDATE events SET raw_json = NULL
           WHERE timestamp < ? AND raw_json IS NOT NULL
-        `).run(options.rawBefore);
+        `)
+          .run(options.rawBefore);
         prunedRaw = Number(result.changes);
       }
       if (options.snapshotsBefore) {
-        const result = this.db.prepare(`
+        const result = this.db
+          .prepare(`
           UPDATE file_snapshots
           SET status = 'pruned', reason = 'snapshot_retention', blob_hash = NULL
           WHERE created_at < ? AND status = 'captured'
-        `).run(options.snapshotsBefore);
+        `)
+          .run(options.snapshotsBefore);
         prunedSnapshots = Number(result.changes);
       }
-      const blobResult = this.db.prepare('DELETE FROM content_blobs WHERE hash NOT IN (SELECT blob_hash FROM file_snapshots WHERE blob_hash IS NOT NULL)').run();
+      const blobResult = this.db
+        .prepare('DELETE FROM content_blobs WHERE hash NOT IN (SELECT blob_hash FROM file_snapshots WHERE blob_hash IS NOT NULL)')
+        .run();
       const blobs = Number(blobResult.changes);
       if (prunedRaw + prunedSnapshots + blobs > 0) {
-        this.db.prepare(`
+        this.db
+          .prepare(`
           INSERT INTO retention_runs (executed_at, raw_before, snapshots_before, raw_events_pruned, snapshots_pruned, blobs_pruned)
           VALUES (?, ?, ?, ?, ?, ?)
-        `).run(new Date().toISOString(), options.rawBefore ?? null, options.snapshotsBefore ?? null, prunedRaw, prunedSnapshots, blobs);
+        `)
+          .run(new Date().toISOString(), options.rawBefore ?? null, options.snapshotsBefore ?? null, prunedRaw, prunedSnapshots, blobs);
       }
       return { rawEvents: prunedRaw, snapshots: prunedSnapshots, blobs, applied: true };
     });
@@ -1195,11 +1381,13 @@ export class RecorderStore {
     const providers = this.db.prepare('SELECT provider, COUNT(*) count FROM sessions GROUP BY provider').all() as DbRow[];
     const last = this.db.prepare("SELECT value FROM recorder_meta WHERE key = 'last_ingested_at'").get() as DbRow | undefined;
     const schema = this.db.prepare("SELECT value FROM recorder_meta WHERE key = 'schema_version'").get() as DbRow | undefined;
-    const evidence = this.db.prepare(`
+    const evidence = this.db
+      .prepare(`
       SELECT
         (SELECT COUNT(*) FROM file_snapshots) snapshots,
         (SELECT COUNT(*) FROM events WHERE kind = 'gap') capture_gaps
-    `).get() as DbRow;
+    `)
+      .get() as DbRow;
     return {
       schemaVersion: Number(schema?.value ?? 1),
       sessions: Number(totals.sessions),
@@ -1231,11 +1419,14 @@ export class RecorderStore {
       if (status in snapshots) snapshots[status] = Number(row.count);
       snapshots.total += Number(row.count);
     }
-    const gapRows = this.db.prepare(`
+    const gapRows = this.db
+      .prepare(`
       SELECT COALESCE(gap_code, 'unknown') code, COUNT(*) count
       FROM events WHERE kind = 'gap' GROUP BY code ORDER BY count DESC
-    `).all() as DbRow[];
-    const fileCoverage = this.db.prepare(`
+    `)
+      .all() as DbRow[];
+    const fileCoverage = this.db
+      .prepare(`
       WITH file_events AS (
         SELECT id FROM events WHERE kind = 'file'
       ), evidence_events AS (
@@ -1255,30 +1446,40 @@ export class RecorderStore {
       SELECT
         (SELECT COUNT(*) FROM file_events) file_events,
         (SELECT COUNT(*) FROM covered_ids) covered
-    `).get() as DbRow;
+    `)
+      .get() as DbRow;
     const fileEvents = Number(fileCoverage.file_events);
     const coveredFileEvents = Number(fileCoverage.covered ?? 0);
     const uncoveredFileEvents = Math.max(0, fileEvents - coveredFileEvents);
-    const calls = this.db.prepare(`
+    const calls = this.db
+      .prepare(`
       SELECT
         COUNT(*) pending,
         SUM(CASE WHEN started_at < ? THEN 1 ELSE 0 END) stale
       FROM call_attempts WHERE outcome = 'running'
-    `).get(new Date(Date.now() - 5 * 60_000).toISOString()) as DbRow;
+    `)
+      .get(new Date(Date.now() - 5 * 60_000).toISOString()) as DbRow;
     const pendingCalls = Number(calls.pending ?? 0);
     const staleCalls = Number(calls.stale ?? 0);
-    const permissionRows = this.db.prepare(`
+    const permissionRows = this.db
+      .prepare(`
       SELECT
         SUM(CASE WHEN outcome = 'pending' THEN 1 ELSE 0 END) pending,
         SUM(CASE WHEN outcome = 'unknown' THEN 1 ELSE 0 END) unknown,
         SUM(CASE WHEN outcome = 'denied' AND assurance = 'explicit' THEN 1 ELSE 0 END) explicit_denials,
         SUM(CASE WHEN outcome = 'executed' AND assurance = 'inferred' THEN 1 ELSE 0 END) inferred_executions
       FROM permission_flows
-    `).get() as DbRow;
+    `)
+      .get() as DbRow;
     const now = Date.now();
     const heartbeatRows = this.db.prepare('SELECT * FROM recorder_heartbeats ORDER BY component').all() as DbRow[];
     return {
-      status: fileEvents === 0 && pendingCalls === 0 ? 'idle' : uncoveredFileEvents > 0 || staleCalls > 0 || Number(permissionRows.unknown ?? 0) > 0 ? 'degraded' : 'healthy',
+      status:
+        fileEvents === 0 && pendingCalls === 0
+          ? 'idle'
+          : uncoveredFileEvents > 0 || staleCalls > 0 || Number(permissionRows.unknown ?? 0) > 0
+            ? 'degraded'
+            : 'healthy',
       fileEvents,
       coveredFileEvents,
       uncoveredFileEvents,
@@ -1298,9 +1499,10 @@ export class RecorderStore {
         components: heartbeatRows.map((row) => {
           const lastSeenAt = String(row.last_seen_at);
           const ageMs = Math.max(0, now - Date.parse(lastSeenAt));
-          return { component: String(row.component), lastSeenAt, ageMs, state: ageMs <= 30_000 ? 'active' as const : 'idle' as const };
+          return { component: String(row.component), lastSeenAt, ageMs, state: ageMs <= 30_000 ? ('active' as const) : ('idle' as const) };
         }),
-        limitation: 'A recorder can audit configured coverage and received heartbeats, but no hook can prove an event for which the provider never launched that hook.',
+        limitation:
+          'A recorder can audit configured coverage and received heartbeats, but no hook can prove an event for which the provider never launched that hook.',
       },
     };
   }
@@ -1333,16 +1535,27 @@ export class RecorderStore {
     const left = this.getSession(leftId);
     const right = this.getSession(rightId);
     if (!left || !right) return null;
-    const kinds = (sessionId: string): Record<string, number> => Object.fromEntries((this.db.prepare('SELECT kind, COUNT(*) count FROM events WHERE session_id = ? GROUP BY kind').all(sessionId) as DbRow[]).map((row) => [String(row.kind), Number(row.count)]));
+    const kinds = (sessionId: string): Record<string, number> =>
+      Object.fromEntries(
+        (this.db.prepare('SELECT kind, COUNT(*) count FROM events WHERE session_id = ? GROUP BY kind').all(sessionId) as DbRow[]).map((row) => [
+          String(row.kind),
+          Number(row.count),
+        ]),
+      );
     const leftKinds = kinds(leftId);
     const rightKinds = kinds(rightId);
     const kindNames = [...new Set([...Object.keys(leftKinds), ...Object.keys(rightKinds)])] as EventKind[];
-    const paths = (sessionId: string): string[] => (this.db.prepare(`
+    const paths = (sessionId: string): string[] =>
+      (
+        this.db
+          .prepare(`
       SELECT path FROM (
         SELECT path FROM events WHERE session_id = ? AND kind = 'file' AND path IS NOT NULL
         UNION SELECT path FROM file_snapshots WHERE session_id = ?
       ) ORDER BY path
-    `).all(sessionId, sessionId) as DbRow[]).map((row) => String(row.path));
+    `)
+          .all(sessionId, sessionId) as DbRow[]
+      ).map((row) => String(row.path));
     const leftFiles = paths(leftId);
     const rightFiles = paths(rightId);
     const leftSet = new Set(leftFiles);
@@ -1376,13 +1589,15 @@ export class RecorderStore {
       params.push(needle, needle, needle, needle);
     }
     params.push(Math.min(Math.max(options.limit ?? 100_000, 1), 100_000));
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(`
       SELECT
         id, session_id, sequence, timestamp, duration_ms, kind, title, summary, status,
         actor, turn_id, call_id, parent_id, tokens_in, tokens_out, cached_tokens, cost_usd,
         command, path, '{}' payload_json, NULL raw_json
       FROM events WHERE ${clauses.join(' AND ')} ORDER BY sequence ASC LIMIT ?
-    `).all(...params) as DbRow[];
+    `)
+      .all(...params) as DbRow[];
     return rows.map((row) => rowToEvent(row, false, this.vault));
   }
 
@@ -1397,11 +1612,13 @@ export class RecorderStore {
   }
 
   getSessionSnapshotEvidence(sessionId: string): SnapshotEvidence[] {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(`
       SELECT fs.*, cb.content
       FROM file_snapshots fs LEFT JOIN content_blobs cb ON cb.hash = fs.blob_hash
       WHERE fs.session_id = ? ORDER BY fs.sequence ASC, fs.path ASC, fs.phase ASC
-    `).all(sessionId) as DbRow[];
+    `)
+      .all(sessionId) as DbRow[];
     return rows.map((row) => ({
       snapshot: rowToSnapshot(row),
       contentBase64: row.content === null ? null : this.vault.openText(row.content as Uint8Array, `blob:${String(row.blob_hash)}`),
@@ -1409,11 +1626,13 @@ export class RecorderStore {
   }
 
   getCallInvocation(sessionId: string, callId: string): RecorderEvent | null {
-    const row = this.db.prepare(`
+    const row = this.db
+      .prepare(`
       SELECT * FROM events
       WHERE session_id = ? AND call_id = ? AND phase = 'call'
       ORDER BY sequence DESC LIMIT 1
-    `).get(sessionId, callId) as DbRow | undefined;
+    `)
+      .get(sessionId, callId) as DbRow | undefined;
     return row ? rowToEvent(row, false, this.vault) : null;
   }
 
@@ -1424,10 +1643,12 @@ export class RecorderStore {
 
   allocateSequences(sessionId: string, count = 1): number {
     return this.transaction(() => {
-      this.db.prepare(`
+      this.db
+        .prepare(`
         INSERT OR IGNORE INTO event_sequences (session_id, next_sequence)
         SELECT ?, COALESCE(MAX(sequence), -10) + 10 FROM events WHERE session_id = ?
-      `).run(sessionId, sessionId);
+      `)
+        .run(sessionId, sessionId);
       const row = this.db.prepare('SELECT next_sequence FROM event_sequences WHERE session_id = ?').get(sessionId) as DbRow;
       const first = Number(row.next_sequence);
       this.db.prepare('UPDATE event_sequences SET next_sequence = next_sequence + ? WHERE session_id = ?').run(Math.max(1, count) * 10, sessionId);
@@ -1564,7 +1785,7 @@ function safeJson(value: string): unknown {
 }
 
 function record(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 function textValue(value: unknown): string | null {

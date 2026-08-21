@@ -54,15 +54,23 @@ describe('local evidence capture', () => {
     const path = join(directory, 'linked.ts');
     writeFileSync(path, 'export const linked = false;\n');
     const common = {
-      conversation_id: 'cursor-linked-edit', generation_id: 'generation-1', workspace_roots: [directory], cwd: directory,
+      conversation_id: 'cursor-linked-edit',
+      generation_id: 'generation-1',
+      workspace_roots: [directory],
+      cwd: directory,
     };
     const before = recordHookEvent(store, 'cursor', 'preToolUse', {
-      ...common, timestamp: '2026-08-20T12:00:00.000Z', tool_name: 'Write', tool_use_id: 'write-1',
+      ...common,
+      timestamp: '2026-08-20T12:00:00.000Z',
+      tool_name: 'Write',
+      tool_use_id: 'write-1',
       tool_input: { file_path: path, content: 'export const linked = true;\n' },
     });
     writeFileSync(path, 'export const linked = true;\n');
     const after = recordHookEvent(store, 'cursor', 'afterFileEdit', {
-      ...common, timestamp: '2026-08-20T12:00:01.000Z', file_path: path,
+      ...common,
+      timestamp: '2026-08-20T12:00:01.000Z',
+      file_path: path,
       edits: [{ old_string: 'false', new_string: 'true' }],
     });
 
@@ -175,8 +183,20 @@ describe('local evidence capture', () => {
     const { directory, store } = createStore();
     recordHookEvent(store, 'claude', 'UserPromptSubmit', { session_id: 'baseline', cwd: directory, prompt: 'Run checks' });
     recordHookEvent(store, 'cursor', 'beforeSubmitPrompt', { conversation_id: 'target', workspace_path: directory, prompt: 'Run checks' });
-    recordHookEvent(store, 'cursor', 'beforeShellExecution', { conversation_id: 'target', workspace_path: directory, command: 'npm test', tool_call_id: 'test-1' });
-    recordHookEvent(store, 'cursor', 'postToolUseFailure', { conversation_id: 'target', workspace_path: directory, tool_name: 'Shell', tool_call_id: 'test-1', tool_input: { command: 'npm test' }, error_message: 'failed' });
+    recordHookEvent(store, 'cursor', 'beforeShellExecution', {
+      conversation_id: 'target',
+      workspace_path: directory,
+      command: 'npm test',
+      tool_call_id: 'test-1',
+    });
+    recordHookEvent(store, 'cursor', 'postToolUseFailure', {
+      conversation_id: 'target',
+      workspace_path: directory,
+      tool_name: 'Shell',
+      tool_call_id: 'test-1',
+      tool_input: { command: 'npm test' },
+      error_message: 'failed',
+    });
 
     const comparison = store.compareSessions('claude:baseline', 'cursor:target');
     expect(comparison?.metricDelta).toMatchObject({ totalEvents: 2, testRuns: 1, errors: 1 });
@@ -190,8 +210,39 @@ describe('local evidence capture', () => {
     tempDirectories.push(directory);
     const database = join(directory, 'recorder.db');
     let store = new RecorderStore(database);
-    store.upsertSession({ id: 'codex:legacy', provider: 'codex', nativeSessionId: 'legacy', title: 'Legacy', startedAt: '2020-01-01T00:00:00.000Z', updatedAt: '2020-01-01T00:00:00.000Z', projectName: 'legacy', sourcePath: '/legacy.jsonl', status: 'complete' });
-    store.insertEventWithMetrics({ id: 'evt:legacy-file', sessionId: 'codex:legacy', sequence: 10, timestamp: '2020-01-01T00:00:00.000Z', durationMs: null, kind: 'file', title: 'Legacy file action', summary: 'Path was not recorded', status: 'running', actor: 'assistant', turnId: null, callId: 'legacy-call', parentId: null, tokensIn: null, tokensOut: null, cachedTokens: null, costUsd: null, command: null, path: null, payload: { phase: 'call' } });
+    store.upsertSession({
+      id: 'codex:legacy',
+      provider: 'codex',
+      nativeSessionId: 'legacy',
+      title: 'Legacy',
+      startedAt: '2020-01-01T00:00:00.000Z',
+      updatedAt: '2020-01-01T00:00:00.000Z',
+      projectName: 'legacy',
+      sourcePath: '/legacy.jsonl',
+      status: 'complete',
+    });
+    store.insertEventWithMetrics({
+      id: 'evt:legacy-file',
+      sessionId: 'codex:legacy',
+      sequence: 10,
+      timestamp: '2020-01-01T00:00:00.000Z',
+      durationMs: null,
+      kind: 'file',
+      title: 'Legacy file action',
+      summary: 'Path was not recorded',
+      status: 'running',
+      actor: 'assistant',
+      turnId: null,
+      callId: 'legacy-call',
+      parentId: null,
+      tokensIn: null,
+      tokensOut: null,
+      cachedTokens: null,
+      costUsd: null,
+      command: null,
+      path: null,
+      payload: { phase: 'call' },
+    });
     store.close();
     const native = new DatabaseSync(database);
     native.prepare("UPDATE recorder_meta SET value = '2' WHERE key = 'schema_version'").run();
@@ -208,7 +259,12 @@ describe('local evidence capture', () => {
 
   it('materializes stale unmatched tool calls as timeline gaps', () => {
     const { directory, store } = createStore();
-    recordHookEvent(store, 'cursor', 'beforeShellExecution', { conversation_id: 'stale-call', workspace_path: directory, timestamp: '2020-01-01T00:00:00.000Z', command: 'node task.js' });
+    recordHookEvent(store, 'cursor', 'beforeShellExecution', {
+      conversation_id: 'stale-call',
+      workspace_path: directory,
+      timestamp: '2020-01-01T00:00:00.000Z',
+      command: 'node task.js',
+    });
 
     expect(store.recordStaleCallGaps(Date.parse('2020-01-01T00:10:00.000Z'))).toBe(1);
     expect(store.recordStaleCallGaps(Date.parse('2020-01-01T00:10:00.000Z'))).toBe(0);
@@ -220,8 +276,39 @@ describe('local evidence capture', () => {
 
   it('materializes an explicit gap for a file action whose provider exposed no path', () => {
     const { store } = createStore();
-    store.upsertSession({ id: 'codex:pathless', provider: 'codex', nativeSessionId: 'pathless', title: 'Pathless', startedAt: '2020-01-01T00:00:00.000Z', updatedAt: '2020-01-01T00:00:00.000Z', projectName: 'pathless', sourcePath: '/pathless.jsonl', status: 'complete' });
-    store.insertEventWithMetrics({ id: 'evt:pathless', sessionId: 'codex:pathless', sequence: 10, timestamp: '2020-01-01T00:00:00.000Z', durationMs: null, kind: 'file', title: 'Pathless file action', summary: 'Provider omitted the path', status: 'success', actor: 'runtime', turnId: null, callId: null, parentId: null, tokensIn: null, tokensOut: null, cachedTokens: null, costUsd: null, command: null, path: null, payload: { phase: 'result' } });
+    store.upsertSession({
+      id: 'codex:pathless',
+      provider: 'codex',
+      nativeSessionId: 'pathless',
+      title: 'Pathless',
+      startedAt: '2020-01-01T00:00:00.000Z',
+      updatedAt: '2020-01-01T00:00:00.000Z',
+      projectName: 'pathless',
+      sourcePath: '/pathless.jsonl',
+      status: 'complete',
+    });
+    store.insertEventWithMetrics({
+      id: 'evt:pathless',
+      sessionId: 'codex:pathless',
+      sequence: 10,
+      timestamp: '2020-01-01T00:00:00.000Z',
+      durationMs: null,
+      kind: 'file',
+      title: 'Pathless file action',
+      summary: 'Provider omitted the path',
+      status: 'success',
+      actor: 'runtime',
+      turnId: null,
+      callId: null,
+      parentId: null,
+      tokensIn: null,
+      tokensOut: null,
+      cachedTokens: null,
+      costUsd: null,
+      command: null,
+      path: null,
+      payload: { phase: 'result' },
+    });
 
     expect(store.recordUncoveredFileGaps()).toBe(1);
     expect(store.recordUncoveredFileGaps()).toBe(0);
@@ -237,13 +324,19 @@ describe('local evidence capture', () => {
     const database = join(directory, 'recorder.db');
     const store = new RecorderStore(database);
     recordHookEvent(store, 'compatible', null, {
-      schema: 'afr.event.v1', sessionId: 'encrypted', event: 'prompt.submit',
-      timestamp: '2026-08-20T12:00:00.000Z', prompt: 'private flight evidence phrase', cwd: directory,
+      schema: 'afr.event.v1',
+      sessionId: 'encrypted',
+      event: 'prompt.submit',
+      timestamp: '2026-08-20T12:00:00.000Z',
+      prompt: 'private flight evidence phrase',
+      cwd: directory,
     });
     const overview = store.getOverview();
     expect(overview.storageSecurity).toMatchObject({
-      databaseEncryption: 'aes-256-gcm-sensitive-columns', plaintextMetadata: true,
-      directoryMode: '0700', databaseMode: '0600',
+      databaseEncryption: 'aes-256-gcm-sensitive-columns',
+      plaintextMetadata: true,
+      directoryMode: '0700',
+      databaseMode: '0600',
     });
     store.close();
 

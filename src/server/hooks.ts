@@ -1,17 +1,8 @@
 import type { EventKind, EventStatus, Provider } from '../shared/types.js';
 import type { EventInput, SessionInput } from './model.js';
-import { RecorderStore } from './store.js';
+import type { RecorderStore } from './store.js';
 import { captureFileBoundary } from './snapshots.js';
-import {
-  eventKindForTool,
-  extractCommands,
-  extractPaths,
-  inferResultStatus,
-  outputText,
-  projectName,
-  stableId,
-  summarize,
-} from './adapters/helpers.js';
+import { eventKindForTool, extractCommands, extractPaths, inferResultStatus, outputText, projectName, stableId, summarize } from './adapters/helpers.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -25,18 +16,14 @@ export interface HookReceipt {
   gapEventIds: string[];
 }
 
-export function recordHookEvent(
-  store: RecorderStore,
-  provider: Provider,
-  explicitEvent: string | null,
-  payloadValue: unknown,
-): HookReceipt {
+export function recordHookEvent(store: RecorderStore, provider: Provider, explicitEvent: string | null, payloadValue: unknown): HookReceipt {
   store.recordHeartbeat(`hook:${provider}`, explicitEvent ?? 'provider envelope');
   const payload = object(payloadValue);
   if (provider === 'compatible') validateCompatibleEnvelope(payload, explicitEvent);
   const eventName = explicitEvent ?? text(payload.hook_event_name) ?? text(payload.event) ?? text(payload.type) ?? 'unknown';
-  const nativeSessionId = firstText(payload, ['session_id', 'sessionId', 'conversation_id', 'conversationId', 'composer_id', 'composerId', 'thread_id', 'threadId'])
-    ?? `unscoped-${stableId(provider, firstText(payload, ['cwd', 'workspace', 'workspace_path']), new Date().toISOString().slice(0, 10))}`;
+  const nativeSessionId =
+    firstText(payload, ['session_id', 'sessionId', 'conversation_id', 'conversationId', 'composer_id', 'composerId', 'thread_id', 'threadId']) ??
+    `unscoped-${stableId(provider, firstText(payload, ['cwd', 'workspace', 'workspace_path']), new Date().toISOString().slice(0, 10))}`;
   const sessionId = `${provider}:${nativeSessionId}`;
   const timestamp = timestampFor(payload);
   const workspaceRoots = Array.isArray(payload.workspace_roots) ? payload.workspace_roots.filter((value): value is string => typeof value === 'string') : [];
@@ -51,7 +38,7 @@ export function recordHookEvent(
     nativeSessionId,
     title: existing?.title ?? sessionTitle ?? (prompt ? summarize(prompt, 92) : projectName(cwd)),
     startedAt: existing?.startedAt ?? timestamp,
-    endedAt: ended ? timestamp : existing?.endedAt ?? null,
+    endedAt: ended ? timestamp : (existing?.endedAt ?? null),
     updatedAt: timestamp,
     cwd: cwd ?? existing?.cwd ?? null,
     projectName: existing?.projectName ?? projectName(cwd),
@@ -65,7 +52,9 @@ export function recordHookEvent(
   const batchCalls = /posttoolbatch/i.test(eventName) && Array.isArray(payload.tool_calls) ? payload.tool_calls : null;
   const sequence = store.allocateSequences(sessionId, batchCalls?.length ?? 1);
   const events = batchCalls?.length
-    ? batchCalls.map((call, index) => normalizeHook(provider, eventName, { ...payload, ...object(call), hook_event_name: eventName }, sessionId, sequence + index * 10, timestamp))
+    ? batchCalls.map((call, index) =>
+        normalizeHook(provider, eventName, { ...payload, ...object(call), hook_event_name: eventName }, sessionId, sequence + index * 10, timestamp),
+      )
     : [normalizeHook(provider, eventName, payload, sessionId, sequence, timestamp)];
   let snapshots = 0;
   const gapEventIds: string[] = [];
@@ -83,7 +72,15 @@ export function recordHookEvent(
     }
   }
   store.setLastIngestedAt(new Date().toISOString());
-  return { sessionId, eventId: events[0].id, eventIds: events.map((event) => event.id), kind: events[0].kind, status: events[0].status, snapshots, gapEventIds };
+  return {
+    sessionId,
+    eventId: events[0].id,
+    eventIds: events.map((event) => event.id),
+    kind: events[0].kind,
+    status: events[0].status,
+    snapshots,
+    gapEventIds,
+  };
 }
 
 function validateCompatibleEnvelope(payload: JsonRecord, explicitEvent: string | null): void {
@@ -100,19 +97,22 @@ function filePaths(event: EventInput): string[] {
   return [...new Set([event.path, ...paths].filter((value): value is string => Boolean(value)))];
 }
 
-function normalizeHook(
-  provider: Provider,
-  eventName: string,
-  payload: JsonRecord,
-  sessionId: string,
-  sequence: number,
-  timestamp: string,
-): EventInput {
+function normalizeHook(provider: Provider, eventName: string, payload: JsonRecord, sessionId: string, sequence: number, timestamp: string): EventInput {
   const lower = eventName.toLowerCase().replace(/[_\s.-]+/g, '');
   const toolName = firstText(payload, ['tool_name', 'toolName', 'tool', 'command_type', 'commandType']) ?? nestedText(payload, ['tool', 'name']) ?? 'tool';
   const toolInput = parseJsonValue(first(payload, ['tool_input', 'toolInput', 'input', 'arguments']) ?? nested(payload, ['tool', 'input']) ?? {});
-  const toolOutput = first(payload, ['tool_response', 'toolResponse', 'tool_output', 'toolOutput', 'output', 'result', 'result_json', 'error', 'error_message']);
-  const command = /mcp/i.test(eventName) ? extractCommands(toolInput) : firstText(payload, ['command']) ?? extractCommands(toolInput);
+  const toolOutput = first(payload, [
+    'tool_response',
+    'toolResponse',
+    'tool_output',
+    'toolOutput',
+    'output',
+    'result',
+    'result_json',
+    'error',
+    'error_message',
+  ]);
+  const command = /mcp/i.test(eventName) ? extractCommands(toolInput) : (firstText(payload, ['command']) ?? extractCommands(toolInput));
   const paths = [...extractPaths(toolInput), ...candidatePaths(payload)];
   const callId = firstText(payload, ['tool_use_id', 'toolUseId', 'call_id', 'callId', 'tool_call_id', 'toolCallId']);
   const requestedStatus = eventStatus(firstText(payload, ['status']));
@@ -138,42 +138,130 @@ function normalizeHook(
 
   if (/userprompt|promptsubmit|beforesubmitprompt|afteruserprompt/.test(lower)) {
     const prompt = firstText(payload, ['prompt', 'user_prompt', 'userPrompt', 'message']) ?? outputText(toolInput);
-    return { ...common, kind: 'prompt', title: 'Operator prompt', summary: summarize(prompt), status: 'success', actor: 'user', payload: { providerEvent: eventName, prompt } };
+    return {
+      ...common,
+      kind: 'prompt',
+      title: 'Operator prompt',
+      summary: summarize(prompt),
+      status: 'success',
+      actor: 'user',
+      payload: { providerEvent: eventName, prompt },
+    };
   }
   if (lower.includes('permission')) {
     const status = /denied|reject/.test(lower) ? 'blocked' : /approved|allow/.test(lower) ? 'success' : 'running';
-    return { ...common, kind: 'permission', title: `Permission · ${toolName}`, summary: summarize(command ?? JSON.stringify(toolInput)), status, payload: { providerEvent: eventName, phase: status === 'running' ? 'request' : 'result', tool: toolName, input: toolInput, decision: first(payload, ['decision', 'permission_decision']) } };
+    return {
+      ...common,
+      kind: 'permission',
+      title: `Permission · ${toolName}`,
+      summary: summarize(command ?? JSON.stringify(toolInput)),
+      status,
+      payload: {
+        providerEvent: eventName,
+        phase: status === 'running' ? 'request' : 'result',
+        tool: toolName,
+        input: toolInput,
+        decision: first(payload, ['decision', 'permission_decision']),
+      },
+    };
   }
   if (/pretool|beforetool|toolbefore|beforeshell|shellbefore|beforemcp|mcpbefore|beforeread|beforetabfileread|beforefile|toolstart|commandstart/.test(lower)) {
-    const kind = /shell|command/.test(lower) ? eventKindForTool('terminal', { command }) : /read/.test(lower) ? 'tool' : /file/.test(lower) ? 'file' : eventKindForTool(toolName, toolInput);
+    const kind = /shell|command/.test(lower)
+      ? eventKindForTool('terminal', { command })
+      : /read/.test(lower)
+        ? 'tool'
+        : /file/.test(lower)
+          ? 'file'
+          : eventKindForTool(toolName, toolInput);
     const resultExpected = !/beforereadfile|beforetabfileread/.test(lower);
-    return { ...common, kind, title: hookToolTitle(kind, toolName, resultExpected ? 'started' : 'observed'), summary: summarize(command ?? (paths.join(', ') || JSON.stringify(toolInput))), status: resultExpected ? 'running' : 'neutral', payload: { providerEvent: eventName, phase: 'call', tool: toolName, input: toolInput, paths, resultExpected } };
+    return {
+      ...common,
+      kind,
+      title: hookToolTitle(kind, toolName, resultExpected ? 'started' : 'observed'),
+      summary: summarize(command ?? (paths.join(', ') || JSON.stringify(toolInput))),
+      status: resultExpected ? 'running' : 'neutral',
+      payload: { providerEvent: eventName, phase: 'call', tool: toolName, input: toolInput, paths, resultExpected },
+    };
   }
   if (/afterfileedit|aftertabfileedit|filechanged|fileedit|afteredit|filesaved|filewritten/.test(lower)) {
-    return { ...common, kind: 'file', title: 'File mutation', summary: paths.join(', ') || 'File change reported', status: /error|failure/.test(lower) ? 'error' : 'success', payload: { providerEvent: eventName, phase: 'result', paths, edits: payload.edits ?? null, input: toolInput } };
+    return {
+      ...common,
+      kind: 'file',
+      title: 'File mutation',
+      summary: paths.join(', ') || 'File change reported',
+      status: /error|failure/.test(lower) ? 'error' : 'success',
+      payload: { providerEvent: eventName, phase: 'result', paths, edits: payload.edits ?? null, input: toolInput },
+    };
   }
   if (/posttool|aftertool|toolafter|aftershell|shellafter|aftermcp|mcpafter|afterfile|toolend|commandend|toolfailure|toolerror/.test(lower)) {
     const kind = /shell|command/.test(lower) ? eventKindForTool('terminal', { command }) : /file/.test(lower) ? 'file' : eventKindForTool(toolName, toolInput);
     const inferred = inferResultStatus(toolOutput);
-    const status: EventStatus = /failure|error/.test(lower) || first(payload, ['error', 'failure']) ? 'error' : requestedStatus ?? inferred;
-    return { ...common, kind, title: hookToolTitle(kind, toolName, status === 'error' ? 'failed' : 'completed'), summary: summarize(outputText(toolOutput) || command || JSON.stringify(toolInput)), status, actor: 'runtime', payload: { providerEvent: eventName, phase: 'result', tool: toolName, input: toolInput, output: toolOutput, paths } };
+    const status: EventStatus = /failure|error/.test(lower) || first(payload, ['error', 'failure']) ? 'error' : (requestedStatus ?? inferred);
+    return {
+      ...common,
+      kind,
+      title: hookToolTitle(kind, toolName, status === 'error' ? 'failed' : 'completed'),
+      summary: summarize(outputText(toolOutput) || command || JSON.stringify(toolInput)),
+      status,
+      actor: 'runtime',
+      payload: { providerEvent: eventName, phase: 'result', tool: toolName, input: toolInput, output: toolOutput, paths },
+    };
   }
   if (/reason|thinking|thought|analysis/.test(lower)) {
     const reasoning = firstText(payload, ['reasoning', 'text', 'message']) ?? outputText(toolOutput);
-    return { ...common, kind: 'reasoning', title: 'Reasoning stage', summary: summarize(reasoning) || 'Reasoning stage reported', status: 'success', actor: 'assistant', payload: { providerEvent: eventName, reasoning } };
+    return {
+      ...common,
+      kind: 'reasoning',
+      title: 'Reasoning stage',
+      summary: summarize(reasoning) || 'Reasoning stage reported',
+      status: 'success',
+      actor: 'assistant',
+      payload: { providerEvent: eventName, reasoning },
+    };
   }
   if (/response|assistantmessage|agentmessage|messagedisplay/.test(lower)) {
     const response = firstText(payload, ['response', 'text', 'message', 'delta', 'last_assistant_message']) ?? outputText(toolOutput);
-    return { ...common, kind: 'response', title: 'Agent response', summary: summarize(response), status: 'success', actor: 'assistant', payload: { providerEvent: eventName, response } };
+    return {
+      ...common,
+      kind: 'response',
+      title: 'Agent response',
+      summary: summarize(response),
+      status: 'success',
+      actor: 'assistant',
+      payload: { providerEvent: eventName, response },
+    };
   }
   if (/compact|context/.test(lower)) {
-    return { ...common, kind: 'context', title: humanize(eventName), summary: summarize(firstText(payload, ['trigger', 'reason', 'message']) ?? 'Context state changed'), status: 'neutral', actor: 'runtime', payload: { providerEvent: eventName, ...payload } };
+    return {
+      ...common,
+      kind: 'context',
+      title: humanize(eventName),
+      summary: summarize(firstText(payload, ['trigger', 'reason', 'message']) ?? 'Context state changed'),
+      status: 'neutral',
+      actor: 'runtime',
+      payload: { providerEvent: eventName, ...payload },
+    };
   }
   if (/error|failure/.test(lower)) {
-    return { ...common, kind: 'error', title: humanize(eventName), summary: summarize(outputText(toolOutput) || firstText(payload, ['message']) || 'Provider reported a failure'), status: 'error', actor: 'runtime', payload: { providerEvent: eventName, ...payload } };
+    return {
+      ...common,
+      kind: 'error',
+      title: humanize(eventName),
+      summary: summarize(outputText(toolOutput) || firstText(payload, ['message']) || 'Provider reported a failure'),
+      status: 'error',
+      actor: 'runtime',
+      payload: { providerEvent: eventName, ...payload },
+    };
   }
   const lifecycleStatus: EventStatus = /start|resume/.test(lower) ? 'running' : /stop|end|complete/.test(lower) ? 'success' : 'neutral';
-  return { ...common, kind: 'lifecycle', title: humanize(eventName), summary: lifecycleSummary(eventName, payload), status: lifecycleStatus, payload: { providerEvent: eventName, ...payload } };
+  return {
+    ...common,
+    kind: 'lifecycle',
+    title: humanize(eventName),
+    summary: lifecycleSummary(eventName, payload),
+    status: lifecycleStatus,
+    payload: { providerEvent: eventName, ...payload },
+  };
 }
 
 function hookToolTitle(kind: EventKind, tool: string, phase: string): string {
@@ -224,12 +312,16 @@ function numeric(value: unknown): number | null {
 }
 
 function eventStatus(value: string | null): EventStatus | null {
-  return value && ['neutral', 'running', 'success', 'error', 'blocked'].includes(value) ? value as EventStatus : null;
+  return value && ['neutral', 'running', 'success', 'error', 'blocked'].includes(value) ? (value as EventStatus) : null;
 }
 
 function parseJsonValue(value: unknown): unknown {
   if (typeof value !== 'string') return value;
-  try { return JSON.parse(value) as unknown; } catch { return value; }
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
 }
 
 function first(record: JsonRecord, keys: string[]): unknown {
@@ -260,9 +352,12 @@ function text(value: unknown): string | null {
 }
 
 function object(value: unknown): JsonRecord {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
 function humanize(value: string): string {
-  return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+  return value
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }

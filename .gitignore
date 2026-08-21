@@ -1,6 +1,12 @@
 node_modules/
 dist/
 build/
-.flight-recorder/
+.flight-recorder*/
+playwright-report/
+test-results/
+*.afr
+.env
+.env.*
+!.env.example
 .DS_Store
 *.log

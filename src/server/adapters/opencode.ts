@@ -1,17 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
-import type { EventKind, EventStatus } from '../../shared/types.js';
+import type { EventStatus } from '../../shared/types.js';
 import type { EventInput, SessionInput } from '../model.js';
 import { sqliteSourceStat } from '../discovery.js';
-import { RecorderStore } from '../store.js';
+import type { RecorderStore } from '../store.js';
 import { recordHistoricalSnapshotGap } from '../snapshots.js';
-import {
-  eventKindForTool,
-  extractCommands,
-  extractPaths,
-  projectName,
-  stableId,
-  summarize,
-} from './helpers.js';
+import { eventKindForTool, extractCommands, extractPaths, projectName, stableId, summarize } from './helpers.js';
 import type { ImportStats } from './codex.js';
 
 type NativeRow = Record<string, string | number | bigint | null>;
@@ -27,11 +20,13 @@ export function importOpenCodeDatabase(sourcePath: string, store: RecorderStore)
 
   const native = new DatabaseSync(sourcePath, { readOnly: true });
   try {
-    const sessions = native.prepare(`
+    const sessions = native
+      .prepare(`
       SELECT s.*, p.name project_name, p.worktree project_worktree
       FROM session s LEFT JOIN project p ON p.id = s.project_id
       ORDER BY s.time_created ASC
-    `).all() as NativeRow[];
+    `)
+      .all() as NativeRow[];
     const parts = native.prepare(`
       SELECT p.*, m.data message_data
       FROM part p JOIN message m ON m.id = p.message_id
@@ -75,7 +70,19 @@ export function importOpenCodeDatabase(sourcePath: string, store: RecorderStore)
         if (nativeSession.permission) {
           const permission = parseJson(String(nativeSession.permission));
           const event = baseEvent(sessionId, ++sequence, startedAt, String(nativeSession.id));
-          if (store.insertEvent({ ...event, kind: 'permission', title: 'Session permission policy', summary: summarize(JSON.stringify(permission)), status: 'neutral', actor: 'runtime', payload: permission, raw: permission })) events += 1;
+          if (
+            store.insertEvent({
+              ...event,
+              kind: 'permission',
+              title: 'Session permission policy',
+              summary: summarize(JSON.stringify(permission)),
+              status: 'neutral',
+              actor: 'runtime',
+              payload: permission,
+              raw: permission,
+            })
+          )
+            events += 1;
         }
 
         for (const row of parts.all(nativeId) as NativeRow[]) {
@@ -138,11 +145,29 @@ function mapPart(
   const event = baseEvent(sessionId, sequence, timestamp, nativeId);
   if (type === 'text') {
     const text = string(data.text) ?? '';
-    return { ...event, kind: role === 'user' ? 'prompt' : 'response', title: role === 'user' ? 'Operator prompt' : 'Agent response', summary: summarize(text), status: 'success', actor: role, payload: { role, text }, raw: data };
+    return {
+      ...event,
+      kind: role === 'user' ? 'prompt' : 'response',
+      title: role === 'user' ? 'Operator prompt' : 'Agent response',
+      summary: summarize(text),
+      status: 'success',
+      actor: role,
+      payload: { role, text },
+      raw: data,
+    };
   }
   if (type === 'reasoning') {
     const text = string(data.text) ?? '';
-    return { ...event, kind: 'reasoning', title: 'Reasoning stage', summary: summarize(text) || 'Reasoning stage captured', status: 'success', actor: 'assistant', payload: { text, time: data.time ?? null }, raw: data };
+    return {
+      ...event,
+      kind: 'reasoning',
+      title: 'Reasoning stage',
+      summary: summarize(text) || 'Reasoning stage captured',
+      status: 'success',
+      actor: 'assistant',
+      payload: { text, time: data.time ?? null },
+      raw: data,
+    };
   }
   if (type === 'tool') {
     const tool = string(data.tool) ?? 'unknown tool';
@@ -168,7 +193,16 @@ function mapPart(
     };
   }
   if (type === 'step-start') {
-    return { ...event, kind: 'lifecycle', title: 'Agent step started', summary: 'Model execution step entered', status: 'running', actor: 'runtime', payload: data, raw: data };
+    return {
+      ...event,
+      kind: 'lifecycle',
+      title: 'Agent step started',
+      summary: 'Model execution step entered',
+      status: 'running',
+      actor: 'runtime',
+      payload: data,
+      raw: data,
+    };
   }
   if (type === 'step-finish') {
     const tokens = object(data.tokens);
@@ -192,12 +226,36 @@ function mapPart(
   }
   if (type === 'file') {
     const filename = string(data.filename);
-    return { ...event, kind: 'artifact', title: 'File artifact attached', summary: filename ?? string(data.mime) ?? 'File attachment', status: 'success', actor: role, path: filename, payload: data, raw: data };
+    return {
+      ...event,
+      kind: 'artifact',
+      title: 'File artifact attached',
+      summary: filename ?? string(data.mime) ?? 'File attachment',
+      status: 'success',
+      actor: role,
+      path: filename,
+      payload: data,
+      raw: data,
+    };
   }
-  return { ...event, kind: 'context', title: humanize(type), summary: `Native OpenCode ${type} record`, status: 'neutral', actor: role, payload: data, raw: data };
+  return {
+    ...event,
+    kind: 'context',
+    title: humanize(type),
+    summary: `Native OpenCode ${type} record`,
+    status: 'neutral',
+    actor: role,
+    payload: data,
+    raw: data,
+  };
 }
 
-function baseEvent(sessionId: string, sequence: number, timestamp: string, nativeId: string): Omit<EventInput, 'kind' | 'title' | 'summary' | 'status' | 'actor' | 'payload'> {
+function baseEvent(
+  sessionId: string,
+  sequence: number,
+  timestamp: string,
+  nativeId: string,
+): Omit<EventInput, 'kind' | 'title' | 'summary' | 'status' | 'actor' | 'payload'> {
   return {
     id: `evt:${stableId('opencode', sessionId, nativeId, sequence)}`,
     sessionId,
@@ -239,11 +297,15 @@ function modelName(value: unknown): string | null {
 }
 
 function parseJson(value: string): unknown {
-  try { return JSON.parse(value); } catch { return value; }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
 }
 
 function object(value: unknown): JsonRecord {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
 function string(value: unknown): string | null {

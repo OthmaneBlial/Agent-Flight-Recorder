@@ -57,7 +57,10 @@ function resolveKey(databasePath: string): { key: Buffer; provider: VaultKeyProv
   if (process.platform === 'darwin' && !testing) {
     const account = createHash('sha256').update(databasePath).digest('hex');
     try {
-      const existing = execFileSync('/usr/bin/security', ['find-generic-password', '-a', account, '-s', KEYCHAIN_SERVICE, '-w'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      const existing = execFileSync('/usr/bin/security', ['find-generic-password', '-a', account, '-s', KEYCHAIN_SERVICE, '-w'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
       return { key: decodeKey(existing), provider: 'macos-keychain' };
     } catch {
       const generated = randomBytes(32).toString('base64');

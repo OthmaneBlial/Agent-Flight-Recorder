@@ -8,7 +8,7 @@ export function callSignature(event: RecorderEvent): string {
   const state = object(payload.state);
   const command = normalizeText(event.command);
   const tool = normalizeTool(payload.tool ?? payload.tools ?? state.tool);
-  const input = command ? null : payload.input ?? state.input ?? null;
+  const input = command ? null : (payload.input ?? state.input ?? null);
   return hash({ kind: event.kind, tool: command ? null : tool, command, path: event.path, input });
 }
 
@@ -17,7 +17,7 @@ export function callCorrelationKey(event: RecorderEvent): string {
   const state = object(payload.state);
   const command = normalizeText(event.command);
   const tool = normalizeTool(payload.tool ?? payload.tools ?? state.tool);
-  const input = command || event.path ? null : payload.input ?? state.input ?? null;
+  const input = command || event.path ? null : (payload.input ?? state.input ?? null);
   return hash({ kind: event.kind, tool: command || event.path ? null : tool, command, path: event.path, input });
 }
 
@@ -51,7 +51,11 @@ function sortValue(value: unknown, depth: number): unknown {
   if (depth > 40) return '[max-depth]';
   if (Array.isArray(value)) return value.map((entry) => sortValue(entry, depth + 1));
   if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.entries(value as JsonRecord).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => [key, sortValue(entry, depth + 1)]));
+  return Object.fromEntries(
+    Object.entries(value as JsonRecord)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, sortValue(entry, depth + 1)]),
+  );
 }
 
 function normalizeText(value: string | null): string | null {
@@ -61,9 +65,14 @@ function normalizeText(value: string | null): string | null {
 function normalizeTool(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalizeTool);
   if (typeof value !== 'string') return value ?? null;
-  return value.trim().toLowerCase().replace(/^(?:mcp:|mcp__)/, 'mcp:') || null;
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/^(?:mcp:|mcp__)/, 'mcp:') || null
+  );
 }
 
 function object(value: unknown): JsonRecord {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonRecord) : {};
 }

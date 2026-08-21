@@ -1,13 +1,14 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { fork } from 'node:child_process';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { EventKind, Provider, ScanResult } from '../shared/types.js';
+import type { EventKind, Provider, ScanResult, SourceHealth } from '../shared/types.js';
 import { sourceHealth } from './discovery.js';
 import { recordHookEvent } from './hooks.js';
 import { policySummary } from './policy.js';
-import { RecorderStore } from './store.js';
+import type { RecorderStore } from './store.js';
 
 interface ServerOptions {
   host?: string;
@@ -15,6 +16,7 @@ interface ServerOptions {
   staticDir?: string | null;
   scanIntervalMs?: number;
   automaticScan?: boolean;
+  evidenceScope?: 'sandbox' | 'private';
 }
 
 const MIME: Record<string, string> = {
@@ -32,6 +34,8 @@ export async function startServer(store: RecorderStore, options: ServerOptions =
   if (!isLoopback(host)) throw new Error(`Refusing non-loopback bind: ${host}. Agent data must stay local.`);
   const port = options.port ?? 4174;
   const staticDir = options.staticDir ? resolve(options.staticDir) : null;
+  const evidenceScope = options.evidenceScope ?? 'private';
+  const nativeIngestEnabled = evidenceScope === 'private';
   const clients = new Set<ServerResponse>();
   let scanning = false;
   store.recordHeartbeat('server', `loopback ${host}:${port}`);
@@ -43,6 +47,7 @@ export async function startServer(store: RecorderStore, options: ServerOptions =
   };
 
   const scan = async (): Promise<unknown> => {
+    if (!nativeIngestEnabled) throw new HttpError(403, 'Native scans are disabled in the synthetic sandbox.');
     if (scanning) return { skipped: true, reason: 'scan already running' };
     scanning = true;
     try {
@@ -55,6 +60,8 @@ export async function startServer(store: RecorderStore, options: ServerOptions =
   };
 
   const server = createServer(async (request, response) => {
+    const requestId = randomUUID();
+    response.setHeader('X-Request-ID', requestId);
     try {
       if (!isTrustedHost(request.headers.host)) {
         setApiHeaders(response);
@@ -68,12 +75,27 @@ export async function startServer(store: RecorderStore, options: ServerOptions =
       if (url.pathname.startsWith('/api/')) {
         setApiHeaders(response);
         if (request.method === 'GET' && url.pathname === '/api/health') {
-          const overview = store.getOverview();
-          return json(response, 200, { ok: true, mode: 'loopback-only', sources: sourceHealth(), capture: { ...store.getCaptureHealth(), evidencePolicy: overview.evidencePolicy } });
+          const overview = apiOverview(store, evidenceScope);
+          return json(response, 200, {
+            ok: true,
+            mode: 'loopback-only',
+            evidenceScope,
+            nativeIngestEnabled,
+            sources: evidenceScope === 'sandbox' ? sandboxSourceHealth() : sourceHealth(),
+            capture: { ...store.getCaptureHealth(), evidencePolicy: overview.evidencePolicy },
+          });
         }
-        if (request.method === 'GET' && url.pathname === '/api/overview') return json(response, 200, store.getOverview());
+        if (request.method === 'GET' && url.pathname === '/api/overview') return json(response, 200, apiOverview(store, evidenceScope));
         if (request.method === 'GET' && url.pathname === '/api/sessions') {
-          return json(response, 200, store.getSessions({ provider: url.searchParams.get('provider') ?? undefined, query: url.searchParams.get('q') ?? undefined, limit: numberParam(url.searchParams.get('limit')) ?? 100 }));
+          return json(
+            response,
+            200,
+            store.getSessions({
+              provider: url.searchParams.get('provider') ?? undefined,
+              query: url.searchParams.get('q') ?? undefined,
+              limit: numberParam(url.searchParams.get('limit')) ?? 100,
+            }),
+          );
         }
         if (request.method === 'GET' && url.pathname === '/api/compare') {
           const left = url.searchParams.get('left');
@@ -85,11 +107,17 @@ export async function startServer(store: RecorderStore, options: ServerOptions =
         if (request.method === 'POST' && url.pathname === '/api/scan') return json(response, 200, await scan());
         const hookMatch = url.pathname.match(/^\/api\/hooks\/([^/]+)\/([^/]+)$/);
         if (request.method === 'POST' && hookMatch) {
+          if (!nativeIngestEnabled) throw new HttpError(403, 'Live hook ingestion is disabled in the synthetic sandbox.');
           const provider = decodeURIComponent(hookMatch[1]) as Provider;
           if (!['claude', 'cursor', 'compatible'].includes(provider)) return json(response, 400, { error: 'Unsupported hook provider' });
           const payload = await readJsonBody(request);
-          const receipt = recordHookEvent(store, provider, decodeURIComponent(hookMatch[2]), payload);
-          broadcast('ingest', { hook: receipt, overview: store.getOverview() });
+          let receipt: ReturnType<typeof recordHookEvent>;
+          try {
+            receipt = recordHookEvent(store, provider, decodeURIComponent(hookMatch[2]), payload);
+          } catch (error) {
+            throw new HttpError(400, error instanceof Error ? error.message : 'Invalid hook event');
+          }
+          broadcast('ingest', { hook: receipt, overview: apiOverview(store, evidenceScope) });
           return json(response, 202, receipt);
         }
         if (request.method === 'GET' && url.pathname === '/api/stream') {
@@ -127,7 +155,15 @@ export async function startServer(store: RecorderStore, options: ServerOptions =
         const eventsMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/events$/);
         if (request.method === 'GET' && eventsMatch) {
           const kinds = url.searchParams.get('kinds')?.split(',').filter(Boolean) as EventKind[] | undefined;
-          return json(response, 200, store.getEvents(decodeURIComponent(eventsMatch[1]), { kinds, query: url.searchParams.get('q') ?? undefined, limit: numberParam(url.searchParams.get('limit')) ?? 100_000 }));
+          return json(
+            response,
+            200,
+            store.getEvents(decodeURIComponent(eventsMatch[1]), {
+              kinds,
+              query: url.searchParams.get('q') ?? undefined,
+              limit: numberParam(url.searchParams.get('limit')) ?? 100_000,
+            }),
+          );
         }
         const sessionMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)$/);
         if (request.method === 'GET' && sessionMatch) {
@@ -140,14 +176,28 @@ export async function startServer(store: RecorderStore, options: ServerOptions =
       if (!staticDir) return json(response, 404, { error: 'Web console runs on the Vite development port.' });
       return serveStatic(url.pathname, staticDir, response);
     } catch (error) {
-      return json(response, 500, { error: error instanceof Error ? error.message : String(error) });
+      const status = error instanceof HttpError ? error.status : 500;
+      const message = status < 500 && error instanceof Error ? error.message : 'Internal recorder error';
+      if (status >= 500) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            component: 'http',
+            requestId,
+            method: request.method,
+            path: request.url,
+            message: error instanceof Error ? error.message : String(error),
+          }),
+        );
+      }
+      return json(response, status, { error: message, requestId });
     }
   });
 
-  if (options.automaticScan ?? true) {
-    const timer = setInterval(() => void scan().catch((error) => broadcast('error', { message: String(error) })), options.scanIntervalMs ?? 2_500);
+  if (nativeIngestEnabled && (options.automaticScan ?? true)) {
+    const timer = setInterval(() => void scan().catch((error) => broadcast('recorder-error', { message: String(error) })), options.scanIntervalMs ?? 2_500);
     timer.unref();
-    void scan().catch((error) => broadcast('error', { message: String(error) }));
+    void scan().catch((error) => broadcast('recorder-error', { message: String(error) }));
   }
   const heartbeatTimer = setInterval(() => store.recordHeartbeat('server', `loopback ${host}:${port}`), 10_000);
   heartbeatTimer.unref();
@@ -162,7 +212,24 @@ export async function startServer(store: RecorderStore, options: ServerOptions =
     server.once('error', reject);
     server.listen(port, host, () => resolvePromise());
   });
-  console.log(`Agent Flight Recorder listening at http://${host}:${port}`);
+  console.log(JSON.stringify({ level: 'info', component: 'server', message: 'Agent Flight Recorder listening', url: `http://${host}:${port}` }));
+}
+
+function sandboxSourceHealth(): SourceHealth[] {
+  return [
+    {
+      provider: 'compatible',
+      path: 'demo://synthetic-checkout-repair',
+      detail: 'Synthetic sandbox evidence only · native sources locked',
+      available: true,
+    },
+  ];
+}
+
+function apiOverview(store: RecorderStore, evidenceScope: 'sandbox' | 'private'): ReturnType<RecorderStore['getOverview']> {
+  const overview = store.getOverview();
+  if (evidenceScope === 'private') return overview;
+  return { ...overview, dataPath: '.flight-recorder-demo/recorder.db' };
 }
 
 function scanInProcess(store: RecorderStore): Promise<ScanResult> {
@@ -187,18 +254,30 @@ function scanInProcess(store: RecorderStore): Promise<ScanResult> {
 }
 
 function serveStatic(pathname: string, root: string, response: ServerResponse): void {
-  const relative = normalize(decodeURIComponent(pathname)).replace(/^(\.\.[/\\])+/, '').replace(/^[/\\]+/, '');
-  let path = join(root, relative || 'index.html');
-  if (!resolve(path).startsWith(root)) return json(response, 403, { error: 'Forbidden' });
+  const relativePath = normalize(decodeURIComponent(pathname))
+    .replace(/^(\.\.[/\\])+/, '')
+    .replace(/^[/\\]+/, '');
+  let path = join(root, relativePath || 'index.html');
+  const relation = relative(root, resolve(path));
+  if (relation.startsWith('..') || isAbsolute(relation)) {
+    json(response, 403, { error: 'Forbidden' });
+    return;
+  }
   if (!existsSync(path) || statSync(path).isDirectory()) path = join(root, 'index.html');
-  if (!existsSync(path)) return json(response, 404, { error: 'Console build not found' });
+  if (!existsSync(path)) {
+    json(response, 404, { error: 'Console build not found' });
+    return;
+  }
   response.writeHead(200, {
     'Content-Type': MIME[extname(path)] ?? 'application/octet-stream',
     'Cache-Control': path.endsWith('index.html') ? 'no-cache' : 'public, max-age=31536000, immutable',
-    'Content-Security-Policy': "default-src 'self'; connect-src 'self'; font-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+    'Content-Security-Policy':
+      "default-src 'self'; connect-src 'self'; font-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
     'Referrer-Policy': 'no-referrer',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
+    'Cross-Origin-Resource-Policy': 'same-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
   });
   createReadStream(path).pipe(response);
 }
@@ -213,6 +292,7 @@ function setApiHeaders(response: ServerResponse): void {
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('Referrer-Policy', 'no-referrer');
   response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+  response.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
 }
 
 function numberParam(value: string | null): number | null {
@@ -258,10 +338,23 @@ async function readJsonBody(request: IncomingMessage, maxBytes = 10 * 1024 * 102
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += buffer.length;
-    if (size > maxBytes) throw new Error(`Hook payload exceeds ${maxBytes} bytes`);
+    if (size > maxBytes) throw new HttpError(413, `Hook payload exceeds ${maxBytes} bytes`);
     chunks.push(buffer);
   }
   const body = Buffer.concat(chunks).toString('utf8').trim();
   if (!body) return {};
-  return JSON.parse(body) as unknown;
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
+    throw new HttpError(400, 'Request body must contain valid JSON.');
+  }
+}
+
+class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
 }

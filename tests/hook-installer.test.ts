@@ -16,7 +16,10 @@ describe('managed provider hook configuration', () => {
     tempDirectories.push(homeRoot);
     const target = join(homeRoot, '.claude', 'settings.json');
     mkdirSync(join(homeRoot, '.claude'));
-    const original = { permissions: { allow: ['Read'] }, hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '/existing/hook' }] }] } };
+    const original = {
+      permissions: { allow: ['Read'] },
+      hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '/existing/hook' }] }] },
+    };
     writeFileSync(target, `${JSON.stringify(original, null, 2)}\n`);
     const options = {
       provider: 'claude' as const,

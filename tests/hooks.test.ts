@@ -19,7 +19,13 @@ describe('provider hook bridge', () => {
     recordHookEvent(store, 'claude', 'SessionStart', { ...common, source: 'startup' });
     recordHookEvent(store, 'claude', 'UserPromptSubmit', { ...common, prompt: 'Repair the parser' });
     recordHookEvent(store, 'claude', 'PreToolUse', { ...common, tool_name: 'Bash', tool_use_id: 'tool-1', tool_input: { command: 'npm test' } });
-    recordHookEvent(store, 'claude', 'PostToolUseFailure', { ...common, tool_name: 'Bash', tool_use_id: 'tool-1', tool_input: { command: 'npm test' }, error: 'one test failed' });
+    recordHookEvent(store, 'claude', 'PostToolUseFailure', {
+      ...common,
+      tool_name: 'Bash',
+      tool_use_id: 'tool-1',
+      tool_input: { command: 'npm test' },
+      error: 'one test failed',
+    });
     recordHookEvent(store, 'claude', 'PermissionRequest', { ...common, tool_name: 'Bash', tool_input: { command: 'git push' } });
 
     const session = store.getSession('claude:claude-session');
@@ -38,30 +44,58 @@ describe('provider hook bridge', () => {
     const store = createStore();
     const common = { session_id: 'permission-session', cwd: '/work/permission' };
     const request = recordHookEvent(store, 'claude', 'PermissionRequest', {
-      ...common, timestamp: '2026-08-20T12:00:00.000Z', tool_name: 'Bash', tool_input: { command: 'git push' },
+      ...common,
+      timestamp: '2026-08-20T12:00:00.000Z',
+      tool_name: 'Bash',
+      tool_input: { command: 'git push' },
     });
     const result = recordHookEvent(store, 'claude', 'PostToolUse', {
-      ...common, timestamp: '2026-08-20T12:00:02.000Z', tool_name: 'Bash', tool_use_id: 'tool-1', tool_input: { command: 'git push' }, tool_response: 'done',
+      ...common,
+      timestamp: '2026-08-20T12:00:02.000Z',
+      tool_name: 'Bash',
+      tool_use_id: 'tool-1',
+      tool_input: { command: 'git push' },
+      tool_response: 'done',
     });
     expect(store.getPermissionTrace(request.eventId)?.current).toMatchObject({
-      outcome: 'executed', assurance: 'inferred', decisionEventId: result.eventId, callId: 'tool-1',
+      outcome: 'executed',
+      assurance: 'inferred',
+      decisionEventId: result.eventId,
+      callId: 'tool-1',
     });
 
     const denied = recordHookEvent(store, 'cursor', 'postToolUseFailure', {
-      conversation_id: 'cursor-permission', workspace_path: '/work/permission', timestamp: '2026-08-20T12:01:00.000Z',
-      tool_name: 'Shell', tool_use_id: 'tool-denied', tool_input: { command: 'rm guarded' },
-      failure_type: 'permission_denied', error_message: 'Denied by user',
+      conversation_id: 'cursor-permission',
+      workspace_path: '/work/permission',
+      timestamp: '2026-08-20T12:01:00.000Z',
+      tool_name: 'Shell',
+      tool_use_id: 'tool-denied',
+      tool_input: { command: 'rm guarded' },
+      failure_type: 'permission_denied',
+      error_message: 'Denied by user',
     });
     expect(store.getPermissionTrace(denied.eventId)?.current).toMatchObject({
-      outcome: 'denied', assurance: 'explicit', decisionEventId: denied.eventId, callId: 'tool-denied',
+      outcome: 'denied',
+      assurance: 'explicit',
+      decisionEventId: denied.eventId,
+      callId: 'tool-denied',
     });
 
     const compatible = { schema: 'afr.event.v1', sessionId: 'compatible-permission', cwd: '/work/permission' };
     const compatibleRequest = recordHookEvent(store, 'compatible', null, {
-      ...compatible, event: 'permission.request', timestamp: '2026-08-20T12:02:00.000Z', tool: 'Shell', input: { command: 'deploy' },
+      ...compatible,
+      event: 'permission.request',
+      timestamp: '2026-08-20T12:02:00.000Z',
+      tool: 'Shell',
+      input: { command: 'deploy' },
     });
     recordHookEvent(store, 'compatible', null, {
-      ...compatible, event: 'permission.approved', timestamp: '2026-08-20T12:02:01.000Z', tool: 'Shell', input: { command: 'deploy' }, decision: { behavior: 'allow' },
+      ...compatible,
+      event: 'permission.approved',
+      timestamp: '2026-08-20T12:02:01.000Z',
+      tool: 'Shell',
+      input: { command: 'deploy' },
+      decision: { behavior: 'allow' },
     });
     expect(store.getPermissionTrace(compatibleRequest.eventId)?.current).toMatchObject({ outcome: 'allowed', assurance: 'explicit' });
     store.close();
@@ -72,7 +106,13 @@ describe('provider hook bridge', () => {
     const common = { conversation_id: 'cursor-session', workspace_path: '/work/beta', timestamp: '2026-08-20T13:00:00.000Z' };
     recordHookEvent(store, 'cursor', 'beforeSubmitPrompt', { ...common, prompt: 'Check the build' });
     const before = recordHookEvent(store, 'cursor', 'beforeShellExecution', { ...common, command: 'pnpm build', sandbox: true });
-    const after = recordHookEvent(store, 'cursor', 'afterShellExecution', { ...common, command: 'pnpm build', output: 'done', duration_ms: 820, sandbox: true });
+    const after = recordHookEvent(store, 'cursor', 'afterShellExecution', {
+      ...common,
+      command: 'pnpm build',
+      output: 'done',
+      duration_ms: 820,
+      sandbox: true,
+    });
 
     const events = store.getEvents('cursor:cursor-session');
     expect(events.map((event) => event.kind)).toEqual(['prompt', 'test', 'test']);
@@ -87,7 +127,12 @@ describe('provider hook bridge', () => {
     const store = createStore();
     const common = { conversation_id: 'retry-session', workspace_path: '/work/retry' };
     recordHookEvent(store, 'cursor', 'beforeShellExecution', { ...common, timestamp: '2026-08-20T13:00:00.000Z', command: 'pnpm test' });
-    recordHookEvent(store, 'cursor', 'afterShellExecution', { ...common, timestamp: '2026-08-20T13:00:01.000Z', command: 'pnpm test', output: 'Process exited with code 1' });
+    recordHookEvent(store, 'cursor', 'afterShellExecution', {
+      ...common,
+      timestamp: '2026-08-20T13:00:01.000Z',
+      command: 'pnpm test',
+      output: 'Process exited with code 1',
+    });
     const second = recordHookEvent(store, 'cursor', 'beforeShellExecution', { ...common, timestamp: '2026-08-20T13:00:02.000Z', command: 'pnpm test' });
     recordHookEvent(store, 'cursor', 'afterShellExecution', { ...common, timestamp: '2026-08-20T13:00:03.000Z', command: 'pnpm test', output: 'passed' });
     recordHookEvent(store, 'cursor', 'beforeShellExecution', { ...common, timestamp: '2026-08-20T13:00:04.000Z', command: 'pnpm test' });
@@ -109,13 +154,28 @@ describe('provider hook bridge', () => {
     const store = createStore();
     const common = { conversation_id: 'bounded-correlation', workspace_path: '/work/bounded' };
     recordHookEvent(store, 'cursor', 'beforeShellExecution', { ...common, timestamp: '2026-08-20T13:00:00.000Z', command: 'pnpm test' });
-    recordHookEvent(store, 'cursor', 'afterShellExecution', { ...common, timestamp: '2026-08-20T13:00:01.000Z', command: 'pnpm test', output: 'Process exited with code 1' });
+    recordHookEvent(store, 'cursor', 'afterShellExecution', {
+      ...common,
+      timestamp: '2026-08-20T13:00:01.000Z',
+      command: 'pnpm test',
+      output: 'Process exited with code 1',
+    });
     const distant = recordHookEvent(store, 'cursor', 'beforeShellExecution', { ...common, timestamp: '2026-08-20T13:10:02.000Z', command: 'pnpm test' });
     expect(store.getEvents('cursor:bounded-correlation').filter((event) => event.kind === 'retry')).toHaveLength(0);
     expect(store.getCallLineage(distant.eventId)?.current?.attempt).toBe(2);
 
-    const firstEdit = recordHookEvent(store, 'cursor', 'afterFileEdit', { ...common, timestamp: '2026-08-20T14:00:00.000Z', file_path: '/work/bounded/file.ts', edits: [] });
-    const lateEdit = recordHookEvent(store, 'cursor', 'afterFileEdit', { ...common, timestamp: '2026-08-20T15:00:00.000Z', file_path: '/work/bounded/file.ts', edits: [] });
+    const firstEdit = recordHookEvent(store, 'cursor', 'afterFileEdit', {
+      ...common,
+      timestamp: '2026-08-20T14:00:00.000Z',
+      file_path: '/work/bounded/file.ts',
+      edits: [],
+    });
+    const lateEdit = recordHookEvent(store, 'cursor', 'afterFileEdit', {
+      ...common,
+      timestamp: '2026-08-20T15:00:00.000Z',
+      file_path: '/work/bounded/file.ts',
+      edits: [],
+    });
     expect(store.getCallLineage(firstEdit.eventId)?.current).toMatchObject({ eventId: firstEdit.eventId, startObserved: false });
     expect(store.getCallLineage(lateEdit.eventId)?.current).toMatchObject({ eventId: lateEdit.eventId, startObserved: false });
     expect(store.getSession('cursor:bounded-correlation')?.metrics.fileChanges).toBe(2);
@@ -125,16 +185,34 @@ describe('provider hook bridge', () => {
   it('retains every native Cursor callback while merging duplicate facets into one logical action', () => {
     const store = createStore();
     const common = {
-      conversation_id: 'cursor-facets', generation_id: 'generation-1', workspace_roots: ['/work/facets'],
-      cwd: '/work/facets', timestamp: '2026-08-20T13:10:00.000Z',
+      conversation_id: 'cursor-facets',
+      generation_id: 'generation-1',
+      workspace_roots: ['/work/facets'],
+      cwd: '/work/facets',
+      timestamp: '2026-08-20T13:10:00.000Z',
     };
     const pre = recordHookEvent(store, 'cursor', 'preToolUse', {
-      ...common, tool_name: 'Shell', tool_use_id: 'tool-1', tool_input: { command: 'pnpm test' },
+      ...common,
+      tool_name: 'Shell',
+      tool_use_id: 'tool-1',
+      tool_input: { command: 'pnpm test' },
     });
     const before = recordHookEvent(store, 'cursor', 'beforeShellExecution', { ...common, command: 'pnpm test', sandbox: true });
-    const after = recordHookEvent(store, 'cursor', 'afterShellExecution', { ...common, command: 'pnpm test', output: 'Process exited with code 1', duration: 12, sandbox: true });
+    const after = recordHookEvent(store, 'cursor', 'afterShellExecution', {
+      ...common,
+      command: 'pnpm test',
+      output: 'Process exited with code 1',
+      duration: 12,
+      sandbox: true,
+    });
     const post = recordHookEvent(store, 'cursor', 'postToolUseFailure', {
-      ...common, tool_name: 'Shell', tool_use_id: 'tool-1', tool_input: { command: 'pnpm test' }, error_message: 'failed', failure_type: 'error', duration: 12,
+      ...common,
+      tool_name: 'Shell',
+      tool_use_id: 'tool-1',
+      tool_input: { command: 'pnpm test' },
+      error_message: 'failed',
+      failure_type: 'error',
+      duration: 12,
     });
 
     expect(store.getEvents('cursor:cursor-facets')).toHaveLength(4);
@@ -148,19 +226,36 @@ describe('provider hook bridge', () => {
   it('does not invent stale result gaps for Cursor read hooks that have no after event', () => {
     const store = createStore();
     const common = {
-      conversation_id: 'cursor-read', generation_id: 'generation-1', workspace_roots: ['/work/read'], cwd: '/work/read',
+      conversation_id: 'cursor-read',
+      generation_id: 'generation-1',
+      workspace_roots: ['/work/read'],
+      cwd: '/work/read',
     };
     const specialized = recordHookEvent(store, 'cursor', 'beforeReadFile', {
-      ...common, timestamp: '2020-01-01T00:00:00.000Z', file_path: '/work/read/input.ts', content: 'export {}', attachments: [],
+      ...common,
+      timestamp: '2020-01-01T00:00:00.000Z',
+      file_path: '/work/read/input.ts',
+      content: 'export {}',
+      attachments: [],
     });
     expect(store.getCallLineage(specialized.eventId)?.current).toMatchObject({ outcome: 'unknown', facets: 1 });
     expect(store.recordStaleCallGaps(Date.parse('2020-01-01T00:10:00.000Z'))).toBe(0);
 
     const generic = recordHookEvent(store, 'cursor', 'preToolUse', {
-      ...common, timestamp: '2020-01-01T00:00:01.000Z', tool_name: 'Read', tool_use_id: 'read-1', tool_input: { file_path: '/work/read/input.ts' },
+      ...common,
+      timestamp: '2020-01-01T00:00:01.000Z',
+      tool_name: 'Read',
+      tool_use_id: 'read-1',
+      tool_input: { file_path: '/work/read/input.ts' },
     });
     const result = recordHookEvent(store, 'cursor', 'postToolUse', {
-      ...common, timestamp: '2020-01-01T00:00:02.000Z', tool_name: 'Read', tool_use_id: 'read-1', tool_input: { file_path: '/work/read/input.ts' }, tool_output: JSON.stringify({ content: 'export {}' }), duration: 2,
+      ...common,
+      timestamp: '2020-01-01T00:00:02.000Z',
+      tool_name: 'Read',
+      tool_use_id: 'read-1',
+      tool_input: { file_path: '/work/read/input.ts' },
+      tool_output: JSON.stringify({ content: 'export {}' }),
+      duration: 2,
     });
     expect(store.getSession('cursor:cursor-read')?.metrics.toolCalls).toBe(1);
     for (const receipt of [specialized, generic, result]) {
@@ -186,7 +281,10 @@ describe('provider hook bridge', () => {
 
   it('generates complete fail-open local hook configurations', () => {
     const claude = generateHookConfig('claude', '/usr/bin/node', '/app/cli.js', '/data') as { hooks: Record<string, unknown[]> };
-    const cursor = generateHookConfig('cursor', '/usr/bin/node', '/app/cli.js', '/data') as { version: number; hooks: Record<string, Array<{ failClosed: boolean }>> };
+    const cursor = generateHookConfig('cursor', '/usr/bin/node', '/app/cli.js', '/data') as {
+      version: number;
+      hooks: Record<string, Array<{ failClosed: boolean }>>;
+    };
     expect(Object.keys(claude.hooks)).toHaveLength(CLAUDE_HOOK_EVENTS.length);
     expect(Object.keys(cursor.hooks)).toHaveLength(CURSOR_HOOK_EVENTS.length);
     expect(cursor.version).toBe(1);
@@ -195,8 +293,16 @@ describe('provider hook bridge', () => {
 
   it('enforces the versioned compatible-agent envelope', () => {
     const store = createStore();
-    expect(() => recordHookEvent(store, 'compatible', null, { sessionId: 'demo', event: 'session.start', timestamp: '2026-08-20T12:00:00.000Z' })).toThrow(/schema/);
-    const receipt = recordHookEvent(store, 'compatible', null, { schema: 'afr.event.v1', sessionId: 'demo', event: 'session.start', timestamp: '2026-08-20T12:00:00.000Z', cwd: '/work/demo' });
+    expect(() => recordHookEvent(store, 'compatible', null, { sessionId: 'demo', event: 'session.start', timestamp: '2026-08-20T12:00:00.000Z' })).toThrow(
+      /schema/,
+    );
+    const receipt = recordHookEvent(store, 'compatible', null, {
+      schema: 'afr.event.v1',
+      sessionId: 'demo',
+      event: 'session.start',
+      timestamp: '2026-08-20T12:00:00.000Z',
+      cwd: '/work/demo',
+    });
     expect(receipt.sessionId).toBe('compatible:demo');
     store.close();
   });

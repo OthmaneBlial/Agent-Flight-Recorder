@@ -76,13 +76,13 @@ A missing, skipped, unsafe, historical, or failed boundary produces a canonical 
 
 ## Evidence policy and lifecycle
 
-The store sanitizes each event before insertion. `mask` redacts common credential-bearing keys and inline credential formats; `strict` additionally omits raw native records. Snapshot text goes through the same inline masker, and known sensitive paths are always excluded. The policy and size/retention settings are surfaced in the overview API so a replay remains interpretable.
+The store sanitizes each event before insertion. `mask` is the default and redacts common credential-bearing keys and inline credential formats; `strict` additionally omits raw native records; `off` is an explicit exact-evidence choice. Invalid environment or CLI policy values fail before storage opens. Snapshot text goes through the same inline masker, and known sensitive paths are always excluded. The policy and size/retention settings are surfaced in the overview API so a replay remains interpretable.
 
 Raw retention nulls only `raw_json`, keeping canonical payloads, call phases, IDs, and metrics intact. Snapshot retention marks provenance as `pruned`, drops the blob reference, and deletes unreferenced content-addressed blobs. Automatic retention runs only when its environment policy is configured; manual pruning is dry-run-first.
 
 ## Runtime boundary
 
-The server rejects non-loopback bind addresses and non-loopback `Host` headers. Mutating requests with an `Origin` header must also originate from loopback, and the static console is served with a self-only content security policy. It exposes:
+The server rejects non-loopback bind addresses and non-loopback `Host` headers. Mutating requests with an `Origin` header must also originate from loopback, and the static console is served with a self-only content security policy. API responses carry request IDs; unexpected server failures are logged locally in structured form while clients receive a bounded error rather than an internal implementation message. It exposes:
 
 - `GET /api/health`, `/api/overview`, `/api/sessions`
 - `GET /api/sessions/:id/events`, `/api/events/:id`
@@ -93,6 +93,12 @@ The server rejects non-loopback bind addresses and non-loopback `Host` headers. 
 - `GET /api/stream` for server-sent live updates
 
 The production server also serves the built console. Development uses Vite on `127.0.0.1:4173` and proxies the API to `127.0.0.1:4174`.
+
+## Demonstration boundary
+
+`demo` uses an isolated `.flight-recorder-demo` store, ignores ambient production `AFR_DATA_DIR` configuration, forces masking, disables native discovery, rejects HTTP scan and live-hook ingestion, and seeds two deterministic compatible-agent flights. Sandbox health responses contain only a synthetic `demo://` source and the overview replaces its absolute database path with a stable relative label. The scenario exercises failure, permission, exact before/after snapshots, retry correlation, resource usage, comparison, and successful completion without reading user evidence. `demo --reset` deletes only the demo database files named inside the selected demo data directory; it does not touch the production store or storage key.
+
+The development launcher preserves this boundary: `npm run dev` starts the sandbox and chooses a free loopback web/API port pair, while the intentionally named `npm run dev:private` starts native local capture. Vite receives the selected API port through the child-process environment; it is never hard-wired to a separate private recorder.
 
 ## Provider-grounded limits
 

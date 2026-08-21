@@ -4,10 +4,16 @@ import '@fontsource-variable/syne';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import { App } from './App';
+import { ErrorBoundary } from './ErrorBoundary';
 import './styles.css';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root');
+if (!root) throw new Error('Agent Flight Recorder root element is missing.');
+
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );

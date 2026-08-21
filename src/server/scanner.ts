@@ -2,7 +2,7 @@ import type { ScanResult } from '../shared/types.js';
 import { importCodexFile } from './adapters/codex.js';
 import { importOpenCodeDatabase } from './adapters/opencode.js';
 import { discoverCodexSources, discoverOpenCodeSource } from './discovery.js';
-import { RecorderStore } from './store.js';
+import type { RecorderStore } from './store.js';
 
 export interface ScanOptions {
   all?: boolean;
@@ -19,7 +19,10 @@ export async function scanSources(store: RecorderStore, options: ScanOptions = {
     errors: [],
   };
   const hasExplicitLimit = options.codexLimit !== undefined && Number.isFinite(options.codexLimit);
-  const codex = discoverCodexSources(hasExplicitLimit ? Math.max(0, options.codexLimit ?? 0) : Number.MAX_SAFE_INTEGER, options.all === true || !hasExplicitLimit);
+  const codex = discoverCodexSources(
+    hasExplicitLimit ? Math.max(0, options.codexLimit ?? 0) : Number.MAX_SAFE_INTEGER,
+    options.all === true || !hasExplicitLimit,
+  );
   const openCode = discoverOpenCodeSource();
 
   for (const source of codex) {

@@ -58,13 +58,9 @@ describe('OpenCode adapter', () => {
 
     const writer = new DatabaseSync(source);
     writer.exec('PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = 0;');
-    writer.prepare('INSERT INTO part VALUES (?, ?, ?, ?, ?)').run(
-      'part-wal',
-      'message-1',
-      'session-1',
-      1_755_684_000_700,
-      JSON.stringify({ type: 'text', text: 'This row is still in the WAL' }),
-    );
+    writer
+      .prepare('INSERT INTO part VALUES (?, ?, ?, ?, ?)')
+      .run('part-wal', 'message-1', 'session-1', 1_755_684_000_700, JSON.stringify({ type: 'text', text: 'This row is still in the WAL' }));
 
     const imported = importOpenCodeDatabase(source, store);
     expect(imported.changed).toBe(true);
@@ -87,14 +83,55 @@ function createNativeDatabase(path: string, includeEdit = false, worktree = '/wo
     CREATE TABLE part (id TEXT PRIMARY KEY, message_id TEXT, session_id TEXT, time_created INTEGER, data TEXT);
   `);
   db.prepare('INSERT INTO project VALUES (?, ?, ?)').run('project-1', 'Alpha', worktree);
-  db.prepare('INSERT INTO session VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('session-1', 'project-1', worktree, 'Repair tests', 'repair-tests', '1.0.0', JSON.stringify({ providerID: 'openai', modelID: 'gpt-5' }), null, 1_755_684_000_000, 1_755_684_004_000, null);
+  db.prepare('INSERT INTO session VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    'session-1',
+    'project-1',
+    worktree,
+    'Repair tests',
+    'repair-tests',
+    '1.0.0',
+    JSON.stringify({ providerID: 'openai', modelID: 'gpt-5' }),
+    null,
+    1_755_684_000_000,
+    1_755_684_004_000,
+    null,
+  );
   db.prepare('INSERT INTO message VALUES (?, ?, ?)').run('message-1', 'session-1', JSON.stringify({ role: 'user' }));
   const insert = db.prepare('INSERT INTO part VALUES (?, ?, ?, ?, ?)');
   insert.run('part-1', 'message-1', 'session-1', 1_755_684_000_100, JSON.stringify({ type: 'text', text: 'Run the parser tests' }));
   insert.run('part-2', 'message-1', 'session-1', 1_755_684_000_200, JSON.stringify({ type: 'reasoning', text: 'I should inspect the suite.' }));
-  insert.run('part-3', 'message-1', 'session-1', 1_755_684_000_300, JSON.stringify({ type: 'tool', tool: 'bash', callID: 'call-1', state: { status: 'completed', input: { command: 'npm test' }, output: 'passed', time: { start: 100, end: 240 } } }));
-  insert.run('part-4', 'message-1', 'session-1', 1_755_684_000_400, JSON.stringify({ type: 'step-finish', reason: 'stop', cost: 0.004, tokens: { input: 120, output: 25, reasoning: 5, cache: { read: 40 } } }));
+  insert.run(
+    'part-3',
+    'message-1',
+    'session-1',
+    1_755_684_000_300,
+    JSON.stringify({
+      type: 'tool',
+      tool: 'bash',
+      callID: 'call-1',
+      state: { status: 'completed', input: { command: 'npm test' }, output: 'passed', time: { start: 100, end: 240 } },
+    }),
+  );
+  insert.run(
+    'part-4',
+    'message-1',
+    'session-1',
+    1_755_684_000_400,
+    JSON.stringify({ type: 'step-finish', reason: 'stop', cost: 0.004, tokens: { input: 120, output: 25, reasoning: 5, cache: { read: 40 } } }),
+  );
   insert.run('part-5', 'message-1', 'session-1', 1_755_684_000_500, JSON.stringify({ type: 'file', filename: 'report.txt', mime: 'text/plain' }));
-  if (includeEdit) insert.run('part-6', 'message-1', 'session-1', 1_755_684_000_600, JSON.stringify({ type: 'tool', tool: 'edit', callID: 'call-2', state: { status: 'completed', input: { file_path: join(worktree, 'changed.ts'), old_string: 'a', new_string: 'b' } } }));
+  if (includeEdit)
+    insert.run(
+      'part-6',
+      'message-1',
+      'session-1',
+      1_755_684_000_600,
+      JSON.stringify({
+        type: 'tool',
+        tool: 'edit',
+        callID: 'call-2',
+        state: { status: 'completed', input: { file_path: join(worktree, 'changed.ts'), old_string: 'a', new_string: 'b' } },
+      }),
+    );
   db.close();
 }

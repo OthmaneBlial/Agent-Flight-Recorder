@@ -1,22 +1,41 @@
 {
   "name": "agent-flight-recorder",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "bin": {
     "agent-flight-recorder": "build/server/cli.js"
   },
   "description": "Local-first observability and replay for AI coding agents.",
+  "license": "MIT",
+  "keywords": [
+    "ai-agents",
+    "observability",
+    "local-first",
+    "codex",
+    "claude-code",
+    "cursor",
+    "opencode"
+  ],
   "scripts": {
-    "dev": "concurrently -k -n recorder,console -c yellow,cyan \"tsx watch src/server/cli.ts serve --dev\" \"vite\"",
+    "dev": "node scripts/dev.mjs",
+    "dev:sandbox": "node scripts/dev.mjs",
+    "dev:private": "node scripts/dev.mjs --private-data",
+    "demo": "npm run build && node build/server/cli.js demo",
     "build": "tsc -p tsconfig.server.json && vite build",
     "start": "node build/server/cli.js serve",
     "scan": "tsx src/server/cli.ts scan",
     "doctor": "tsx src/server/cli.ts doctor",
     "hook": "tsx src/server/cli.ts hook",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
     "test": "vitest run",
-    "verify": "npm run check && npm run test && npm run build"
+    "test:e2e": "playwright test",
+    "screenshots": "npm run build && node scripts/capture-screenshots.mjs",
+    "privacy:check": "node scripts/check-public-privacy.mjs",
+    "verify": "npm run format:check && npm run lint && npm run check && npm run test && npm run privacy:check && npm run build"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
@@ -28,6 +47,8 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.9",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -39,6 +60,7 @@
     "vitest": "^4.1.11"
   },
   "engines": {
-    "node": ">=22.13"
-  }
+    "node": ">=24.18.1"
+  },
+  "packageManager": "npm@11.12.1"
 }

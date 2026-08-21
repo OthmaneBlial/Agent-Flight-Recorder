@@ -60,7 +60,7 @@ function hookHealth(provider: Extract<Provider, 'claude' | 'cursor'>, path: stri
   if (!existsSync(path)) return { provider, path, detail: `User hook config absent · 0/${expectedEvents.length} events`, available: false };
   try {
     const config = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
-    const hooks = config.hooks && typeof config.hooks === 'object' && !Array.isArray(config.hooks) ? config.hooks as Record<string, unknown> : {};
+    const hooks = config.hooks && typeof config.hooks === 'object' && !Array.isArray(config.hooks) ? (config.hooks as Record<string, unknown>) : {};
     const covered = expectedEvents.filter((event) => JSON.stringify(hooks[event] ?? '').includes(providerFlag)).length;
     return { provider, path, detail: `User hook coverage · ${covered}/${expectedEvents.length} events`, available: covered === expectedEvents.length };
   } catch {

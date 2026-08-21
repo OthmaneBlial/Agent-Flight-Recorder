@@ -3,7 +3,10 @@ import { basename } from 'node:path';
 import type { EventKind, EventStatus } from '../../shared/types.js';
 
 export function stableId(...parts: Array<string | number | null | undefined>): string {
-  return createHash('sha256').update(parts.map((part) => String(part ?? '')).join('\u001f')).digest('hex').slice(0, 24);
+  return createHash('sha256')
+    .update(parts.map((part) => String(part ?? '')).join('\u001f'))
+    .digest('hex')
+    .slice(0, 24);
 }
 
 export function projectName(cwd: string | null | undefined): string {
@@ -33,21 +36,28 @@ export function textFromContent(content: unknown): string {
 export function eventKindForTool(name: string, input: unknown): EventKind {
   const lowerName = name.toLowerCase();
   const serialized = typeof input === 'string' ? input : JSON.stringify(input ?? {});
-  const lower = serialized.toLowerCase();
-  const record = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
-  const operation = [record.action, record.operation, record.type].filter((value): value is string => typeof value === 'string').join(' ').toLowerCase();
+  const record = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+  const operation = [record.action, record.operation, record.type]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
   if (lowerName.includes('permission')) return 'permission';
-  if (/\b(apply_patch|edit|write|multiedit|str_replace|create_file|delete_file)\b/.test(`${lowerName} ${operation}`)
-    || /\*\*\* Begin Patch|tools\.apply_patch\s*\(/i.test(serialized)
-    || ['old_string', 'new_string', 'oldText', 'newText', 'patch'].some((key) => key in record)) return 'file';
+  if (
+    /\b(apply_patch|edit|write|multiedit|str_replace|create_file|delete_file)\b/.test(`${lowerName} ${operation}`) ||
+    /\*\*\* Begin Patch|tools\.apply_patch\s*\(/i.test(serialized) ||
+    ['old_string', 'new_string', 'oldText', 'newText', 'patch'].some((key) => key in record)
+  )
+    return 'file';
   if (isTestCommand(serialized)) return 'test';
-  if (/\b(exec|shell|bash|terminal|command)\b/.test(lowerName)
-    || ['cmd', 'command', 'script'].some((key) => typeof record[key] === 'string')) return 'terminal';
+  if (/\b(exec|shell|bash|terminal|command)\b/.test(lowerName) || ['cmd', 'command', 'script'].some((key) => typeof record[key] === 'string'))
+    return 'terminal';
   return 'tool';
 }
 
 export function isTestCommand(value: string): boolean {
-  return /(^|[\s"'])(npm|pnpm|yarn|bun)\s+(run\s+)?(test|check|verify|lint|typecheck|build)\b|\b(vitest|jest|pytest|cargo\s+test|go\s+test|gradle\w*\s+test|xcodebuild\s+test|playwright\s+test)\b/i.test(value);
+  return /(^|[\s"'])(npm|pnpm|yarn|bun)\s+(run\s+)?(test|check|verify|lint|typecheck|build)\b|\b(vitest|jest|pytest|cargo\s+test|go\s+test|gradle\w*\s+test|xcodebuild\s+test|playwright\s+test)\b/i.test(
+    value,
+  );
 }
 
 export function extractCommands(input: unknown): string | null {
@@ -88,7 +98,10 @@ export function toolNames(name: string, input: unknown): string[] {
 
 export function inferResultStatus(output: unknown): EventStatus {
   const serialized = typeof output === 'string' ? output : JSON.stringify(output ?? {});
-  if (/"isError"\s*:\s*true|process exited with code [1-9]\d*|exit_code["']?\s*:\s*[1-9]\d*|script failed|permission denied|command not found/i.test(serialized)) return 'error';
+  if (
+    /"isError"\s*:\s*true|process exited with code [1-9]\d*|exit_code["']?\s*:\s*[1-9]\d*|script failed|permission denied|command not found/i.test(serialized)
+  )
+    return 'error';
   if (/denied|blocked|requires approval/i.test(serialized)) return 'blocked';
   return 'success';
 }

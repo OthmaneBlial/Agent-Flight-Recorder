@@ -9,13 +9,19 @@ Agent Flight Recorder is designed to keep evidence on the local machine.
 - Native records can contain prompts, source code, terminal output, paths, email addresses, credentials, and environment values. Protect the recorder directory like source code or a shell history.
 - Normalized payloads, raw native envelopes, and snapshot content blobs are encrypted with AES-256-GCM before SQLite persistence. On macOS the 256-bit key is held in the login Keychain; `AFR_STORE_KEY` can provide it explicitly; other platforms use a mode-`0600` adjacent key file.
 - Unix data directories are forced to `0700`; the database, WAL/SHM, and fallback key file are forced to `0600`.
-- `.flight-recorder/` is ignored by Git. Do not move the database into a synchronized or version-controlled directory unless that is intentional.
+- Recorder data directories matching `.flight-recorder*/`, portable `.afr` bundles, `.env` files, Playwright traces, and build outputs are ignored by Git. Do not move evidence into a synchronized or version-controlled directory unless that is intentional.
 - Known sensitive file paths (`.env`, credential/secret files, private keys, and key stores) are never snapshotted. The skipped boundary and reason are still recorded as a capture gap.
 - Snapshot capture is restricted to regular text files inside the provider-reported workspace, follows symlinks only when they remain inside that workspace, and defaults to a 2 MiB maximum.
 
-Redaction is opt-in because aggressive masking can remove debugging evidence. Set `AFR_REDACTION_MODE=mask` to mask common credential keys and inline secret formats, or `strict` to omit native raw records as well. Redaction applies at ingestion and does not rewrite evidence already present in a database.
+Credential masking is the default for new evidence. Set `AFR_REDACTION_MODE=strict` to omit native raw records as well, or explicitly choose `off` when exact local evidence outweighs masking. Invalid configuration values fail at startup. Redaction applies at ingestion and does not rewrite evidence already present in a database.
 
 Retention is also opt-in. `AFR_RAW_RETENTION_DAYS` and `AFR_SNAPSHOT_RETENTION_DAYS` apply during scans; the `prune` command previews counts unless `--apply` is supplied. Raw pruning preserves normalized timeline data. Snapshot pruning preserves provenance but deletes unreferenced content blobs.
+
+## Public demo boundary
+
+`npm run dev` and the `demo` command use the isolated `.flight-recorder-demo` store. Demo mode ignores ambient `AFR_DATA_DIR`, forces masking, disables native discovery, rejects manual scan and live-hook HTTP ingestion, and returns synthetic source metadata instead of probing or exposing user-home paths. Use `npm run dev:private` only when you intentionally want to inspect this machine's recorder evidence.
+
+Recorder stores, WAL/SHM files, keys, and portable `.afr` bundles are ignored by Git. `npm run privacy:check` inspects the publishable file set for those artifacts and absolute user-home paths, and is part of `npm run verify`.
 
 Current limitations:
 
@@ -30,4 +36,10 @@ Current limitations:
 
 Do not treat a recorder database or bundle as safe to share merely because masking or encryption is enabled. Column and bundle encryption protects covered contents at rest and detects tampering; it does not hide live-store metadata or make captured source code appropriate to disclose.
 
-To report a vulnerability, open a private security report in the repository rather than posting captured payloads publicly.
+## Supported versions
+
+Security fixes target the current `main` branch and the latest tagged release. Older unmaintained snapshots may not receive backports.
+
+## Reporting a vulnerability
+
+Once this repository is public, use its **Security → Report a vulnerability** flow. Until then, contact the maintainer privately. Do not open a public issue or attach a recorder database, `.afr` bundle, native provider log, source snapshot, credential, or unsanitized `doctor` output. Include the affected commit, minimal sanitized reproduction, impact, and any suggested mitigation.

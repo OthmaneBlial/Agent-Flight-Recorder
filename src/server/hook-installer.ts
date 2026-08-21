@@ -35,19 +35,26 @@ export interface HookMutationReceipt {
 export function installProviderHooks(options: HookInstallOptions): HookMutationReceipt {
   const target = hookConfigPath(options);
   const existing = readConfig(target);
-  const generated = generateHookConfig(options.provider, resolve(options.executable), resolve(options.script), resolve(options.dataDir), [...(options.policyArgs ?? []), INSTALLATION_MARKER]);
+  const generated = generateHookConfig(options.provider, resolve(options.executable), resolve(options.script), resolve(options.dataDir), [
+    ...(options.policyArgs ?? []),
+    INSTALLATION_MARKER,
+  ]);
   const next = mergeConfig(options.provider, existing, object(generated));
   return persistMutation('install', options, target, existing, next);
 }
 
-export function uninstallProviderHooks(options: Omit<HookInstallOptions, 'executable' | 'dataDir'> & { executable?: string; dataDir?: string }): HookMutationReceipt {
+export function uninstallProviderHooks(
+  options: Omit<HookInstallOptions, 'executable' | 'dataDir'> & { executable?: string; dataDir?: string },
+): HookMutationReceipt {
   const target = hookConfigPath(options);
   const existing = readConfig(target);
   const next = removeRecorderHooks(options.provider, existing);
   return persistMutation('uninstall', options, target, existing, next);
 }
 
-export function rollbackProviderHooks(options: Omit<HookInstallOptions, 'executable' | 'dataDir'> & { backupPath: string; executable?: string; dataDir?: string }): HookMutationReceipt {
+export function rollbackProviderHooks(
+  options: Omit<HookInstallOptions, 'executable' | 'dataDir'> & { backupPath: string; executable?: string; dataDir?: string },
+): HookMutationReceipt {
   const target = hookConfigPath(options);
   const existing = readConfig(target);
   const backupPath = resolve(options.backupPath);
@@ -67,7 +74,7 @@ function mergeConfig(provider: HookProvider, existing: JsonRecord, generated: Js
   const hooks = object(next.hooks);
   const generatedHooks = object(generated.hooks);
   for (const [event, generatedEntries] of Object.entries(generatedHooks)) {
-    const current = Array.isArray(hooks[event]) ? hooks[event] as unknown[] : [];
+    const current = Array.isArray(hooks[event]) ? (hooks[event] as unknown[]) : [];
     if (!current.some(containsMarker)) hooks[event] = [...current, ...(Array.isArray(generatedEntries) ? generatedEntries : [])];
   }
   next.hooks = hooks;
@@ -99,7 +106,13 @@ function removeRecorderHooks(provider: HookProvider, existing: JsonRecord): Json
   return next;
 }
 
-function persistMutation(action: HookMutationReceipt['action'], options: Pick<HookInstallOptions, 'provider' | 'scope' | 'apply'>, target: string, existing: JsonRecord, next: JsonRecord): HookMutationReceipt {
+function persistMutation(
+  action: HookMutationReceipt['action'],
+  options: Pick<HookInstallOptions, 'provider' | 'scope' | 'apply'>,
+  target: string,
+  existing: JsonRecord,
+  next: JsonRecord,
+): HookMutationReceipt {
   const changed = stableJson(existing) !== stableJson(next);
   let backup: string | null = null;
   if (options.apply && changed) {
@@ -110,7 +123,16 @@ function persistMutation(action: HookMutationReceipt['action'], options: Pick<Ho
     }
     atomicWrite(target, `${JSON.stringify(next, null, 2)}\n`);
   }
-  return { action, provider: options.provider, scope: options.scope, target, changed, applied: Boolean(options.apply && changed), backup, events: Object.keys(object(next.hooks)).length };
+  return {
+    action,
+    provider: options.provider,
+    scope: options.scope,
+    target,
+    changed,
+    applied: Boolean(options.apply && changed),
+    backup,
+    events: Object.keys(object(next.hooks)).length,
+  };
 }
 
 function readConfig(path: string): JsonRecord {
@@ -142,5 +164,5 @@ function stableJson(value: unknown): string {
 }
 
 function object(value: unknown): JsonRecord {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonRecord) : {};
 }

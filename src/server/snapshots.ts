@@ -4,7 +4,7 @@ import { extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import type { RecorderEvent, RecordedSession } from '../shared/types.js';
 import type { EventInput, FileSnapshotInput, SessionInput } from './model.js';
 import { redactString } from './policy.js';
-import { RecorderStore } from './store.js';
+import type { RecorderStore } from './store.js';
 
 type SnapshotPhase = FileSnapshotInput['phase'];
 type SnapshotAssurance = FileSnapshotInput['assurance'];
@@ -26,10 +26,20 @@ export function captureFileBoundary(
 ): SnapshotReceipt {
   if (!pathOverride) return { snapshotId: null, status: 'skipped', gapEventId: null, reason: 'path_unavailable' };
   const cwd = session.cwd;
-  if (!cwd) return failure(store, event, pathOverride, phase, assurance, 'workspace_unknown', 'File content was not captured because the workspace root is unknown.');
+  if (!cwd)
+    return failure(store, event, pathOverride, phase, assurance, 'workspace_unknown', 'File content was not captured because the workspace root is unknown.');
   const workspace = resolve(cwd);
   const path = resolvePath(pathOverride, workspace);
-  if (!isWithin(workspace, path)) return failure(store, event, path, phase, assurance, 'outside_workspace', 'File content was not captured because the path is outside the recorded workspace.');
+  if (!isWithin(workspace, path))
+    return failure(
+      store,
+      event,
+      path,
+      phase,
+      assurance,
+      'outside_workspace',
+      'File content was not captured because the path is outside the recorded workspace.',
+    );
   if (store.policy.sensitivePathPatterns.some((pattern) => pattern.test(path))) {
     return failure(store, event, path, phase, assurance, 'sensitive_path', 'File content was intentionally skipped by the sensitive-file policy.');
   }
@@ -43,7 +53,8 @@ export function captureFileBoundary(
     if (link.isSymbolicLink()) {
       const realWorkspace = existsSync(workspace) ? realpathSync(workspace) : workspace;
       const realTarget = realpathSync(path);
-      if (!isWithin(realWorkspace, realTarget)) return failure(store, event, path, phase, assurance, 'symlink_escape', 'File content was skipped because its symlink target escapes the workspace.');
+      if (!isWithin(realWorkspace, realTarget))
+        return failure(store, event, path, phase, assurance, 'symlink_escape', 'File content was skipped because its symlink target escapes the workspace.');
     }
     const initial = statSync(path);
     if (!initial.isFile()) return failure(store, event, path, phase, assurance, 'not_a_file', 'Snapshot capture supports regular files only.');
@@ -67,11 +78,28 @@ export function captureFileBoundary(
     const createdAt = new Date().toISOString();
     const mime = textMime(path);
     store.putContentBlob(hash, redacted, mime, 'utf8', createdAt);
-    const snapshot = createSnapshot(event, path, phase, assurance, 'captured', contentWasRedacted ? 'content_redacted' : null, hash, redacted.byteLength, mime, final.mtimeMs, createdAt);
+    const snapshot = createSnapshot(
+      event,
+      path,
+      phase,
+      assurance,
+      'captured',
+      contentWasRedacted ? 'content_redacted' : null,
+      hash,
+      redacted.byteLength,
+      mime,
+      final.mtimeMs,
+      createdAt,
+    );
     store.insertFileSnapshot(snapshot);
     let gapEventId: string | null = null;
     if ((phase === 'after' || phase === 'observed') && !store.hasBeforeBoundary(event as EventInput, path)) {
-      gapEventId = store.insertCaptureGap(event as EventInput, 'before_snapshot_unavailable', 'The resulting file was captured, but no trustworthy before-state was available for this mutation.', path);
+      gapEventId = store.insertCaptureGap(
+        event as EventInput,
+        'before_snapshot_unavailable',
+        'The resulting file was captured, but no trustworthy before-state was available for this mutation.',
+        path,
+      );
     }
     return { snapshotId: snapshot.id, status: 'captured', gapEventId, reason: null };
   } catch (error) {
@@ -80,7 +108,11 @@ export function captureFileBoundary(
 }
 
 export function recordHistoricalSnapshotGap(store: RecorderStore, event: EventInput): string | null {
-  return store.insertCaptureGap(event, 'historical_snapshot_unavailable', 'This file action was imported after execution; exact before/after file contents were not reconstructed from the current worktree.');
+  return store.insertCaptureGap(
+    event,
+    'historical_snapshot_unavailable',
+    'This file action was imported after execution; exact before/after file contents were not reconstructed from the current worktree.',
+  );
 }
 
 function failure(

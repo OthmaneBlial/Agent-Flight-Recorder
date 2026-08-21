@@ -39,7 +39,10 @@ describe('Codex adapter', () => {
     const unchanged = await importCodexFile(source, store);
     expect(unchanged.changed).toBe(false);
 
-    appendFileSync(source, `${native(7, 'response_item', { type: 'custom_tool_call', name: 'exec', call_id: 'call-2', input: 'await tools.exec_command({cmd: "npm test"})' })}\n`);
+    appendFileSync(
+      source,
+      `${native(7, 'response_item', { type: 'custom_tool_call', name: 'exec', call_id: 'call-2', input: 'await tools.exec_command({cmd: "npm test"})' })}\n`,
+    );
     const resumed = await importCodexFile(source, store);
     expect(resumed.changed).toBe(true);
     expect(resumed.events).toBe(1);
@@ -51,7 +54,10 @@ describe('Codex adapter', () => {
     expect(lineage?.current?.attempt).toBe(2);
     expect(lineage?.attempts.map((attempt) => attempt.outcome)).toEqual(['error', 'running']);
 
-    appendFileSync(source, `${native(8, 'response_item', { type: 'custom_tool_call_output', call_id: 'call-2', output: [{ type: 'input_text', text: 'Tests passed' }] })}\n`);
+    appendFileSync(
+      source,
+      `${native(8, 'response_item', { type: 'custom_tool_call_output', call_id: 'call-2', output: [{ type: 'input_text', text: 'Tests passed' }] })}\n`,
+    );
     await importCodexFile(source, store);
     expect(store.getCallLineage(secondCall!.id)?.attempts.map((attempt) => attempt.outcome)).toEqual(['error', 'success']);
     store.close();
@@ -66,11 +72,14 @@ describe('Codex adapter', () => {
     const directory = mkdtempSync(join(tmpdir(), 'afr-codex-meta-'));
     tempDirectories.push(directory);
     const source = join(directory, 'subagent.jsonl');
-    writeFileSync(source, [
-      native(0, 'session_meta', { id: 'source-session', session_id: 'parent-session', cwd: '/work/alpha' }),
-      native(1, 'session_meta', { id: 'nested-meta', session_id: 'parent-session', cwd: '/work/alpha' }),
-      native(2, 'response_item', { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'done' }] }),
-    ].join('\n') + '\n');
+    writeFileSync(
+      source,
+      [
+        native(0, 'session_meta', { id: 'source-session', session_id: 'parent-session', cwd: '/work/alpha' }),
+        native(1, 'session_meta', { id: 'nested-meta', session_id: 'parent-session', cwd: '/work/alpha' }),
+        native(2, 'response_item', { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'done' }] }),
+      ].join('\n') + '\n',
+    );
     const store = new RecorderStore(join(directory, 'recorder.db'));
 
     await importCodexFile(source, store);
@@ -85,15 +94,21 @@ describe('Codex adapter', () => {
     const directory = mkdtempSync(join(tmpdir(), 'afr-codex-growing-'));
     tempDirectories.push(directory);
     const source = join(directory, 'growing.jsonl');
-    writeFileSync(source, [
-      native(1, 'session_meta', { id: 'growing-session', cwd: '/work/growing' }),
-      native(2, 'response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Start' }] }),
-    ].join('\n') + '\n');
+    writeFileSync(
+      source,
+      [
+        native(1, 'session_meta', { id: 'growing-session', cwd: '/work/growing' }),
+        native(2, 'response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Start' }] }),
+      ].join('\n') + '\n',
+    );
     const initialSize = statSize(source);
     const store = new RecorderStore(join(directory, 'recorder.db'));
 
     const firstImport = importCodexFile(source, store);
-    appendFileSync(source, `${native(3, 'response_item', { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Appended during read' }] })}\n`);
+    appendFileSync(
+      source,
+      `${native(3, 'response_item', { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Appended during read' }] })}\n`,
+    );
     await firstImport;
 
     const firstSource = store.getSource(source)!;
@@ -111,26 +126,74 @@ describe('Codex adapter', () => {
     tempDirectories.push(directory);
     const source = join(directory, 'runtime-items.jsonl');
     const changedPath = join(directory, 'changed.ts');
-    writeFileSync(source, [
-      native(1, 'session_meta', { id: 'runtime-items', cwd: directory }),
-      native(2, 'event_msg', { type: 'user_message', message: 'Run the old event stream', images: [], local_images: [], text_elements: [] }),
-      native(3, 'event_msg', { type: 'agent_message', message: 'Starting now', phase: 'commentary' }),
-      native(4, 'response_item', { type: 'function_call', name: 'exec_command', call_id: 'exec-1', arguments: JSON.stringify({ cmd: 'npm test' }) }),
-      native(5, 'event_msg', { type: 'exec_command_end', call_id: 'exec-1', command: ['/bin/zsh', '-lc', 'npm test'], cwd: directory, aggregated_output: 'passed', exit_code: 0, status: 'completed', duration: { secs: 0, nanos: 5_000_000 } }),
-      native(6, 'response_item', { type: 'function_call_output', call_id: 'exec-1', output: 'passed' }),
-      native(7, 'event_msg', { type: 'item_completed', started_at_ms: 10, completed_at_ms: 15, item: { type: 'CommandExecution', id: 'runtime-exec-1', command: ['/bin/zsh', '-lc', 'npm test'], cwd: directory, aggregated_output: 'passed', exit_code: 0, status: 'completed', duration: { secs: 0, nanos: 5_000_000 } } }),
-      native(8, 'response_item', { type: 'custom_tool_call', name: 'apply_patch', call_id: 'patch-1', input: `*** Begin Patch\n*** Update File: ${changedPath}\n*** End Patch` }),
-      native(9, 'event_msg', { type: 'patch_apply_end', call_id: 'patch-1', success: true, status: 'completed', changes: { [changedPath]: { type: 'update' } } }),
-      native(10, 'event_msg', { type: 'context_compacted' }),
-      native(11, 'event_msg', { type: 'turn_aborted', reason: 'operator interrupt', duration_ms: 20 }),
-    ].join('\n') + '\n');
+    writeFileSync(
+      source,
+      [
+        native(1, 'session_meta', { id: 'runtime-items', cwd: directory }),
+        native(2, 'event_msg', { type: 'user_message', message: 'Run the old event stream', images: [], local_images: [], text_elements: [] }),
+        native(3, 'event_msg', { type: 'agent_message', message: 'Starting now', phase: 'commentary' }),
+        native(4, 'response_item', { type: 'function_call', name: 'exec_command', call_id: 'exec-1', arguments: JSON.stringify({ cmd: 'npm test' }) }),
+        native(5, 'event_msg', {
+          type: 'exec_command_end',
+          call_id: 'exec-1',
+          command: ['/bin/zsh', '-lc', 'npm test'],
+          cwd: directory,
+          aggregated_output: 'passed',
+          exit_code: 0,
+          status: 'completed',
+          duration: { secs: 0, nanos: 5_000_000 },
+        }),
+        native(6, 'response_item', { type: 'function_call_output', call_id: 'exec-1', output: 'passed' }),
+        native(7, 'event_msg', {
+          type: 'item_completed',
+          started_at_ms: 10,
+          completed_at_ms: 15,
+          item: {
+            type: 'CommandExecution',
+            id: 'runtime-exec-1',
+            command: ['/bin/zsh', '-lc', 'npm test'],
+            cwd: directory,
+            aggregated_output: 'passed',
+            exit_code: 0,
+            status: 'completed',
+            duration: { secs: 0, nanos: 5_000_000 },
+          },
+        }),
+        native(8, 'response_item', {
+          type: 'custom_tool_call',
+          name: 'apply_patch',
+          call_id: 'patch-1',
+          input: `*** Begin Patch\n*** Update File: ${changedPath}\n*** End Patch`,
+        }),
+        native(9, 'event_msg', {
+          type: 'patch_apply_end',
+          call_id: 'patch-1',
+          success: true,
+          status: 'completed',
+          changes: { [changedPath]: { type: 'update' } },
+        }),
+        native(10, 'event_msg', { type: 'context_compacted' }),
+        native(11, 'event_msg', { type: 'turn_aborted', reason: 'operator interrupt', duration_ms: 20 }),
+      ].join('\n') + '\n',
+    );
     const store = new RecorderStore(join(directory, 'recorder.db'));
 
     await importCodexFile(source, store);
 
     const events = store.getEvents('codex:runtime-items');
     expect(events.map((event) => event.kind)).toEqual([
-      'lifecycle', 'prompt', 'response', 'test', 'test', 'test', 'test', 'file', 'gap', 'file', 'context', 'error',
+      'lifecycle',
+      'prompt',
+      'response',
+      'test',
+      'test',
+      'test',
+      'test',
+      'file',
+      'gap',
+      'file',
+      'context',
+      'error',
     ]);
     expect(store.getSession('codex:runtime-items')?.metrics).toMatchObject({ toolCalls: 2, testRuns: 1, fileChanges: 1, errors: 1 });
     const command = events.find((event) => event.callId === 'exec-1' && event.status === 'running')!;
@@ -144,11 +207,19 @@ describe('Codex adapter', () => {
     const directory = mkdtempSync(join(tmpdir(), 'afr-codex-permission-'));
     tempDirectories.push(directory);
     const source = join(directory, 'permission.jsonl');
-    writeFileSync(source, [
-      native(1, 'session_meta', { id: 'permission-session', cwd: directory }),
-      native(2, 'response_item', { type: 'function_call', name: 'exec_command', call_id: 'escalated-1', arguments: JSON.stringify({ cmd: 'echo ok', sandbox_permissions: 'require_escalated', justification: 'Needs a local capability' }) }),
-      native(3, 'response_item', { type: 'function_call_output', call_id: 'escalated-1', output: 'ok' }),
-    ].join('\n') + '\n');
+    writeFileSync(
+      source,
+      [
+        native(1, 'session_meta', { id: 'permission-session', cwd: directory }),
+        native(2, 'response_item', {
+          type: 'function_call',
+          name: 'exec_command',
+          call_id: 'escalated-1',
+          arguments: JSON.stringify({ cmd: 'echo ok', sandbox_permissions: 'require_escalated', justification: 'Needs a local capability' }),
+        }),
+        native(3, 'response_item', { type: 'function_call_output', call_id: 'escalated-1', output: 'ok' }),
+      ].join('\n') + '\n',
+    );
     const store = new RecorderStore(join(directory, 'recorder.db'));
 
     await importCodexFile(source, store);

@@ -3,9 +3,12 @@
 **Turn local AI coding-agent traces into an auditable replay of prompts, tool calls, edits, tests, retries, permissions, resource usage, failures, and code evolution—without sending the evidence to a cloud service.**
 
 [![Node.js 24.18.1+](https://img.shields.io/badge/Node.js-24.18.1%2B-5FA04E?style=flat-square)](#requirements)
+[![CI](https://github.com/OthmaneBlial/Agent-Flight-Recorder/actions/workflows/ci.yml/badge.svg)](https://github.com/OthmaneBlial/Agent-Flight-Recorder/actions/workflows/ci.yml)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-F6C453?style=flat-square)](LICENSE)
 ![Local first](https://img.shields.io/badge/network-loopback--only-70D7DF?style=flat-square)
 ![No telemetry](https://img.shields.io/badge/telemetry-none-8DDD72?style=flat-square)
+
+[**Explore the live showcase and field manual →**](https://othmaneblial.github.io/Agent-Flight-Recorder/)
 
 ![Agent Flight Recorder replay console](docs/assets/replay-console.png)
 

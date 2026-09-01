@@ -30,10 +30,10 @@ native logs / provider hooks / compatible envelope
 
 | Provider | Surface | Current implementation |
 | --- | --- | --- |
-| Codex | `~/.codex/sessions/**/*.jsonl` | Incremental byte-offset ingestion; best-effort live snapshots and explicit historical gaps. |
-| OpenCode | `~/.local/share/opencode/opencode.db` | Read-only import of sessions, messages, parts, tools, files, tokens, cost, and historical file gaps. |
-| Claude Code | Official command hooks | All 31 documented events supported; synchronous file hooks capture exact boundaries when possible. |
-| Cursor | Official native command hooks | All 21 documented events supported; synchronous file hooks capture exact boundaries when possible. |
+| Codex | Official command hooks + version-tested transcript backfill | All 11 documented lifecycle hooks supported. Incremental JSONL ingestion provides backfill and best-effort snapshots, but the transcript schema is not a stable Codex interface. |
+| OpenCode | Version-tested internal SQLite/WAL | Read-only import of sessions, messages, parts, tools, files, tokens, cost, and historical file gaps. The current path/schema are implementation details, not a stable API. |
+| Claude Code | Official command hooks | All 33 documented events supported; synchronous file hooks capture exact boundaries when possible. |
+| Cursor | Official native command hooks | All 21 documented local IDE/CLI events supported; synchronous file hooks capture exact boundaries when possible. Cloud-agent coverage is smaller. |
 | Compatible agents | `afr.event.v1` JSON over stdin or loopback HTTP | Versioned permissive envelope; unknown fields retained. |
 
 The adapters normalize provider records but always retain the original input on detailed events. Unknown native records become `context` or `lifecycle` events rather than disappearing.
@@ -52,7 +52,7 @@ Schema v5 adds permission flows. Provider-reported allow/deny results are `expli
 
 - SQLite runs in WAL mode so the console, scanner, and short-lived hook processes can safely share one local database.
 - Schema v7 seals normalized payloads, native raw envelopes, and snapshot blobs with per-record AES-256-GCM nonces and authenticated purpose strings. macOS uses a path-scoped login-Keychain key; an environment key and protected-file fallback are supported. Indexed metadata remains plaintext and the overview API says so explicitly.
-- Native Codex sources track byte offsets, size, and modification time. Appended lines are ingested without replaying a multi-gigabyte source.
+- Version-tested Codex transcript sources track byte offsets, size, and modification time. Appended lines are ingested without replaying a multi-gigabyte source.
 - Each Codex read is bounded to its opening `stat()` size so a growing JSONL can never advance the stored offset beyond the recorded source boundary. Automatic native scans run in a separate process, keeping loopback API/SSE latency independent from parsing and encryption work.
 - OpenCode imports are source-versioned by the combined database/WAL size and latest modification time, so uncheckpointed native writes are detected.
 - Session metrics are derived from logical call attempts plus non-action events, so overlapping generic/specialized callbacks do not double-count tools, tests, files, or failures.
@@ -103,11 +103,11 @@ The development launcher preserves this boundary: `npm run dev` starts the sandb
 ## Provider-grounded limits
 
 - Codex can preserve encrypted reasoning payloads and expose their size, but the recorder does not claim to decrypt hidden reasoning.
-- Claude Code hooks do not expose hidden reasoning or complete general token/cost usage.
-- Cursor exposes completed thought blocks but no dedicated token/cost event or explicit native manual permission outcome.
+- The installed Claude Code command-hook adapter does not expose hidden reasoning or complete general token/cost usage. Claude's separate opt-in OpenTelemetry surface is not ingested yet.
+- The installed Cursor local-hook adapter exposes completed thought blocks but no dedicated token/cost event or explicit native manual permission outcome. Cursor's enterprise OpenTelemetry surface is not ingested yet.
 - Claude `FileChanged` reports path/change type rather than a diff, and Cursor `afterFileEdit` supplies edit hunks rather than a guaranteed full snapshot. Local command hooks can read the resulting workspace file, but that evidence is still bounded by path, timing, and local permissions.
-- Command-hook timeouts fail open. The recorder audits configured event coverage, timestamps hook/scanner/server heartbeats, and uses SQLite external-commit detection to push standalone hook receipts into SSE. A hook process that the provider never launches is fundamentally unobservable to that same hook, so `healthy` still does not mean every theoretical provider event was delivered.
-- Health also reports tool calls with no correlated result and marks those older than five minutes as stale. Automatic scans materialize each stale unmatched call once as a linked `tool_result_unavailable` gap. User-level Claude/Cursor source health is based on configured event coverage, not provider-directory existence. Project-level hook installations cannot be globally enumerated.
+- Recorder hook processes always return success by default, including after a local capture failure. The recorder audits configured event coverage, timestamps hook/scanner/server heartbeats, and uses SQLite external-commit detection to push standalone hook receipts into SSE. Provider timeout behavior differs, and a hook process that the provider never launches is fundamentally unobservable to that same hook, so `healthy` still does not mean every theoretical provider event was delivered.
+- Health also reports tool calls with no correlated result and marks those older than five minutes as stale. Automatic scans materialize each stale unmatched call once as a linked `tool_result_unavailable` gap. User-level Codex/Claude/Cursor source health is based on configured event coverage, not provider-directory existence. Codex health separately reports whether its version-tested JSONL backfill is present. Project-level hook installations cannot be globally enumerated.
 - Claude permission requests do not expose a normal tool-use correlation ID, and manual permission-response coverage is not universal. Cursor has no dedicated native manual permission outcome.
 - Cursor `beforeReadFile` and `beforeTabFileRead` do not have paired after events. When no generic post-tool callback exists, the recorder closes that action with an `unknown` outcome instead of inventing a result or later marking it stale.
 - Claude/Cursor hooks do not expose complete universal token/cost telemetry. Missing resource usage remains null rather than estimated.

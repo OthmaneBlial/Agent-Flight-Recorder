@@ -1,12 +1,12 @@
 # Claude Code hooks: official contract draft
 
-Verified 2026-08-20 against Anthropic's current official documentation. Primary source: [Hooks reference](https://code.claude.com/docs/en/hooks). Supporting official pages: [hooks guide](https://code.claude.com/docs/en/hooks-guide) and [permissions](https://code.claude.com/docs/en/permissions).
+Verified 2026-09-01 against Anthropic's current official documentation. Primary source: [Hooks reference](https://code.claude.com/docs/en/hooks). Supporting official pages: [hooks guide](https://code.claude.com/docs/en/hooks-guide) and [permissions](https://code.claude.com/docs/en/permissions).
 
 ## What Agent Flight Recorder can observe
 
-Claude Code currently documents 31 hook events:
+Claude Code currently documents 33 hook events:
 
-`SessionStart`, `Setup`, `UserPromptSubmit`, `UserPromptExpansion`, `PreToolUse`, `PermissionRequest`, `PermissionDenied`, `PostToolUse`, `PostToolUseFailure`, `PostToolBatch`, `Notification`, `MessageDisplay`, `SubagentStart`, `SubagentStop`, `TaskCreated`, `TaskCompleted`, `Stop`, `StopFailure`, `TeammateIdle`, `InstructionsLoaded`, `ConfigChange`, `CwdChanged`, `DirectoryAdded`, `FileChanged`, `WorktreeCreate`, `WorktreeRemove`, `PreCompact`, `PostCompact`, `Elicitation`, `ElicitationResult`, and `SessionEnd`. See the official [lifecycle table](https://code.claude.com/docs/en/hooks#hook-lifecycle) and [event schemas](https://code.claude.com/docs/en/hooks#hook-events).
+`SessionStart`, `Setup`, `UserPromptSubmit`, `UserPromptExpansion`, `PreToolUse`, `PermissionRequest`, `PermissionDenied`, `PostToolUse`, `PostToolUseFailure`, `PostToolBatch`, `Notification`, `MessageDisplay`, `SubagentStart`, `SubagentStop`, `TaskCreated`, `TaskCompleted`, `Stop`, `StopFailure`, `TeammateIdle`, `InstructionsLoaded`, `ConfigChange`, `CwdChanged`, `DirectoryAdded`, `FileChanged`, `WorktreeCreate`, `WorktreeRemove`, `PreCompact`, `PostCompact`, `Elicitation`, `ElicitationResult`, `PreModelSwitch`, `PostModelSwitch`, and `SessionEnd`. See the official [lifecycle table](https://code.claude.com/docs/en/hooks#hook-lifecycle) and [event schemas](https://code.claude.com/docs/en/hooks#hook-events).
 
 This covers prompts, expanded slash/MCP commands, tool inputs/results/failures/batches, shell commands, file-tool edits, filesystem-watch changes, permission asks and auto-mode denials, assistant display and final text, subagents/tasks/teams, configuration and instruction loading, compaction, worktrees, MCP elicitation, session boundaries, and API-stop failures.
 
@@ -60,6 +60,8 @@ The following table is a compact transcription of the official [per-event input 
 | `WorktreeRemove` | absolute `worktree_path` |
 | `PreCompact` | `trigger` (`manual` or `auto`), `custom_instructions` |
 | `PostCompact` | `trigger`, `compact_summary` |
+| `PreModelSwitch` | `from_model`, `to_model`, `requested_model`, `source`, `context_tokens`, `prompt_cache_warm`, `cache_ttl`, `estimated_cache_write_usd`, `pricing` |
+| `PostModelSwitch` | Same model-switch fields; `source` additionally supports automatic and resume transitions |
 | `SessionEnd` | `reason` (`clear`, `resume`, `logout`, `prompt_input_exit`, `other`) |
 | `Elicitation` | `mcp_server_name`, `message`, `mode?`, `url?`, `elicitation_id?`, `requested_schema?` |
 | `ElicitationResult` | `mcp_server_name`, `action`, `mode?`, `elicitation_id?`, `content?` |

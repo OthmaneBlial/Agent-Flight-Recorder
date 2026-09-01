@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { recordHookEvent } from '../src/server/hooks.js';
-import { CLAUDE_HOOK_EVENTS, CURSOR_HOOK_EVENTS, generateHookConfig } from '../src/server/hook-config.js';
+import { CLAUDE_HOOK_EVENTS, CODEX_HOOK_EVENTS, CURSOR_HOOK_EVENTS, generateHookConfig } from '../src/server/hook-config.js';
 import { RecorderStore } from '../src/server/store.js';
 
 const tempDirectories: string[] = [];
@@ -280,11 +280,14 @@ describe('provider hook bridge', () => {
   });
 
   it('generates complete fail-open local hook configurations', () => {
+    const codex = generateHookConfig('codex', '/usr/bin/node', '/app/cli.js', '/data') as { hooks: Record<string, unknown[]> };
     const claude = generateHookConfig('claude', '/usr/bin/node', '/app/cli.js', '/data') as { hooks: Record<string, unknown[]> };
     const cursor = generateHookConfig('cursor', '/usr/bin/node', '/app/cli.js', '/data') as {
       version: number;
       hooks: Record<string, Array<{ failClosed: boolean }>>;
     };
+    expect(Object.keys(codex.hooks)).toHaveLength(CODEX_HOOK_EVENTS.length);
+    expect(JSON.stringify(codex.hooks.PreToolUse)).toContain("'/usr/bin/node' '/app/cli.js' 'hook' '--provider=codex'");
     expect(Object.keys(claude.hooks)).toHaveLength(CLAUDE_HOOK_EVENTS.length);
     expect(Object.keys(cursor.hooks)).toHaveLength(CURSOR_HOOK_EVENTS.length);
     expect(cursor.version).toBe(1);

@@ -83,7 +83,7 @@ async function main(): Promise<void> {
     if (command === 'hook') {
       const provider = (flagValue('--provider=') ?? 'compatible') as Provider;
       try {
-        if (!['claude', 'cursor', 'compatible'].includes(provider)) throw new Error(`Unsupported hook provider: ${provider}`);
+        if (!['codex', 'claude', 'cursor', 'compatible'].includes(provider)) throw new Error(`Unsupported hook provider: ${provider}`);
         const input = await readStandardInput();
         const payload = input.trim() ? (JSON.parse(input) as unknown) : {};
         const receipt = recordHookEvent(store, provider, flagValue('--event=') ?? null, payload);
@@ -98,7 +98,9 @@ async function main(): Promise<void> {
 
     if (command === 'config') {
       const provider = flagValue('--provider=');
-      if (provider !== 'claude' && provider !== 'cursor') throw new Error('Config generation requires --provider=claude or --provider=cursor');
+      if (provider !== 'codex' && provider !== 'claude' && provider !== 'cursor') {
+        throw new Error('Config generation requires --provider=codex, --provider=claude, or --provider=cursor');
+      }
       console.log(
         JSON.stringify(
           generateHookConfig(provider, process.execPath, resolve(process.argv[1]), dataDir, [
@@ -115,8 +117,8 @@ async function main(): Promise<void> {
     if (command === 'install-hooks' || command === 'uninstall-hooks' || command === 'rollback-hooks') {
       const provider = flagValue('--provider=');
       const scope = flagValue('--scope=') ?? 'user';
-      if ((provider !== 'claude' && provider !== 'cursor') || (scope !== 'user' && scope !== 'project')) {
-        throw new Error(`${command} requires --provider=claude|cursor and optional --scope=user|project.`);
+      if ((provider !== 'codex' && provider !== 'claude' && provider !== 'cursor') || (scope !== 'user' && scope !== 'project')) {
+        throw new Error(`${command} requires --provider=codex|claude|cursor and optional --scope=user|project.`);
       }
       const common = {
         provider,
@@ -207,7 +209,7 @@ Commands:
   demo              Start a scan-locked synthetic sandbox (never reads native evidence)
   scan              Import discovered Codex and OpenCode evidence once
   doctor            Print source, capture, storage, and policy health as JSON
-  hook              Record one Claude, Cursor, or compatible stdin event
+  hook              Record one Codex, Claude, Cursor, or compatible stdin event
   config            Generate a provider hook configuration fragment
   install-hooks     Preview or apply a managed provider-hook installation
   uninstall-hooks   Preview or apply removal of recorder-owned hooks
@@ -229,6 +231,7 @@ Examples:
   agent-flight-recorder serve --data-dir=.flight-recorder
   agent-flight-recorder scan --all
   agent-flight-recorder doctor
+  agent-flight-recorder install-hooks --provider=codex --scope=user
   agent-flight-recorder install-hooks --provider=claude --scope=user
 
 Destructive or configuration-changing operations remain dry-run-first and require

@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { Provider, SourceHealth } from '../shared/types.js';
-import { CLAUDE_HOOK_EVENTS, CURSOR_HOOK_EVENTS } from './hook-config.js';
+import { CLAUDE_HOOK_EVENTS, CODEX_HOOK_EVENTS, CURSOR_HOOK_EVENTS } from './hook-config.js';
 
 export interface DiscoveredSource {
   provider: Provider;
@@ -47,16 +47,28 @@ export function sqliteSourceStat(path: string): Pick<DiscoveredSource, 'mtimeMs'
 export function sourceHealth(): SourceHealth[] {
   const home = homedir();
   const codex = join(home, '.codex', 'sessions');
+  const codexHooks = join(home, '.codex', 'hooks.json');
   const openCode = join(home, '.local', 'share', 'opencode', 'opencode.db');
   return [
-    { provider: 'codex', path: codex, detail: 'Native rollout JSONL sessions', available: existsSync(codex) },
+    codexHealth(codexHooks, codex),
     hookHealth('claude', join(home, '.claude', 'settings.json'), CLAUDE_HOOK_EVENTS, '--provider=claude'),
     hookHealth('cursor', join(home, '.cursor', 'hooks.json'), CURSOR_HOOK_EVENTS, '--provider=cursor'),
     { provider: 'opencode', path: openCode, detail: 'Native OpenCode SQLite store', available: existsSync(openCode) },
   ];
 }
 
-function hookHealth(provider: Extract<Provider, 'claude' | 'cursor'>, path: string, expectedEvents: readonly string[], providerFlag: string): SourceHealth {
+function codexHealth(path: string, transcriptRoot: string): SourceHealth {
+  const backfill = existsSync(transcriptRoot) ? 'version-tested JSONL backfill present' : 'no JSONL backfill found';
+  const hooks = hookHealth('codex', path, CODEX_HOOK_EVENTS, '--provider=codex');
+  return { ...hooks, detail: `${hooks.detail} · ${backfill}`, available: hooks.available || existsSync(transcriptRoot) };
+}
+
+function hookHealth(
+  provider: Extract<Provider, 'codex' | 'claude' | 'cursor'>,
+  path: string,
+  expectedEvents: readonly string[],
+  providerFlag: string,
+): SourceHealth {
   if (!existsSync(path)) return { provider, path, detail: `User hook config absent · 0/${expectedEvents.length} events`, available: false };
   try {
     const config = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;

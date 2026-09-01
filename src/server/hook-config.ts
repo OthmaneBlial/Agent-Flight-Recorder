@@ -31,7 +31,23 @@ export const CLAUDE_HOOK_EVENTS = [
   'PostCompact',
   'Elicitation',
   'ElicitationResult',
+  'PreModelSwitch',
+  'PostModelSwitch',
   'SessionEnd',
+] as const;
+
+export const CODEX_HOOK_EVENTS = [
+  'SessionStart',
+  'SessionEnd',
+  'SubagentStart',
+  'PreToolUse',
+  'PermissionRequest',
+  'PostToolUse',
+  'UserPromptSubmit',
+  'PreCompact',
+  'PostCompact',
+  'SubagentStop',
+  'Stop',
 ] as const;
 
 export const CURSOR_HOOK_EVENTS = [
@@ -59,7 +75,7 @@ export const CURSOR_HOOK_EVENTS = [
 ] as const;
 
 export function generateHookConfig(
-  provider: Extract<Provider, 'claude' | 'cursor'>,
+  provider: Extract<Provider, 'codex' | 'claude' | 'cursor'>,
   executable: string,
   script: string,
   dataDir: string,
@@ -74,6 +90,13 @@ export function generateHookConfig(
     };
     return {
       hooks: Object.fromEntries(CLAUDE_HOOK_EVENTS.map((event) => [event, [{ hooks: [handler] }]])),
+    };
+  }
+  if (provider === 'codex') {
+    const command = [executable, script, 'hook', '--provider=codex', `--data-dir=${dataDir}`, ...policyArgs].map(shellQuote).join(' ');
+    const handler = { type: 'command', command, timeout: 5 };
+    return {
+      hooks: Object.fromEntries(CODEX_HOOK_EVENTS.map((event) => [event, [{ hooks: [handler] }]])),
     };
   }
   const command = [executable, script, 'hook', '--provider=cursor', `--data-dir=${dataDir}`, ...policyArgs].map(shellQuote).join(' ');

@@ -31,7 +31,7 @@ describe('managed provider hook configuration', () => {
     };
 
     const preview = installProviderHooks(options);
-    expect(preview).toMatchObject({ changed: true, applied: false, events: 31 });
+    expect(preview).toMatchObject({ changed: true, applied: false, events: 33 });
     expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual(original);
 
     const installed = installProviderHooks({ ...options, apply: true });
@@ -52,6 +52,38 @@ describe('managed provider hook configuration', () => {
     expect(removed).toMatchObject({ changed: true, applied: true, events: 1 });
     expect(JSON.stringify(JSON.parse(readFileSync(target, 'utf8')))).not.toContain('--installation-id=agent-flight-recorder');
     expect((JSON.parse(readFileSync(target, 'utf8')) as typeof original).hooks.PreToolUse).toHaveLength(1);
+  });
+
+  it('installs all Codex user hooks in the official config location', () => {
+    const homeRoot = mkdtempSync(join(tmpdir(), 'afr-codex-hook-home-'));
+    tempDirectories.push(homeRoot);
+
+    const receipt = installProviderHooks({
+      provider: 'codex',
+      scope: 'user',
+      executable: '/usr/bin/node',
+      script: '/opt/agent-flight-recorder/cli.js',
+      dataDir: join(homeRoot, '.flight-recorder'),
+      homeRoot,
+      apply: true,
+    });
+
+    const target = join(homeRoot, '.codex', 'hooks.json');
+    expect(receipt).toMatchObject({ target, applied: true, events: 11 });
+    const config = JSON.parse(readFileSync(target, 'utf8')) as { hooks: Record<string, unknown[]> };
+    expect(Object.keys(config.hooks)).toHaveLength(11);
+    expect(JSON.stringify(config.hooks.PermissionRequest)).toContain('--provider=codex');
+    expect(
+      installProviderHooks({
+        provider: 'codex',
+        scope: 'user',
+        executable: '/usr/bin/node',
+        script: '/opt/agent-flight-recorder/cli.js',
+        dataDir: join(homeRoot, '.flight-recorder'),
+        homeRoot,
+        apply: true,
+      }).changed,
+    ).toBe(false);
   });
 
   it('installs Cursor project hooks without replacing existing events', () => {

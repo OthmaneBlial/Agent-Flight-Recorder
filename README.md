@@ -75,13 +75,13 @@ Before publishing, run `npm run privacy:check`. It rejects recorder databases, k
 
 | Provider | Capture surface | Current behavior |
 | --- | --- | --- |
-| Codex | `~/.codex/sessions/**/*.jsonl` | Incremental bounded reads, current and older runtime-item variants, reasoning payload preservation, tools, commands, patches, usage, collaboration, and explicit historical gaps. |
-| OpenCode | Native SQLite database and WAL | Read-only session/message/part/tool/file/token/cost import with WAL-aware change detection. |
-| Claude Code | Official command hooks | All 31 documented events normalized; exact file boundaries when a synchronous hook and safe workspace path permit them. |
-| Cursor | Official native command hooks | All 21 documented native events normalized; completed thought blocks and detailed shell/file events preserved. |
+| Codex | Official command hooks + version-tested transcript backfill | All 11 documented lifecycle hooks normalized. Incremental bounded JSONL reads remain available for historical evidence, but Codex does not promise a stable transcript format. |
+| OpenCode | Version-tested native SQLite database and WAL | Read-only session/message/part/tool/file/token/cost import with WAL-aware change detection. The path and schema are internal surfaces, not a guaranteed OpenCode API. |
+| Claude Code | Official command hooks | All 33 documented events normalized; exact file boundaries when a synchronous hook and safe workspace path permit them. |
+| Cursor | Official native command hooks | All 21 documented local IDE/CLI events normalized; completed thought blocks and detailed shell/file events preserved. Cursor cloud agents expose a smaller hook subset. |
 | Compatible agents | `afr.event.v1` over stdin or loopback HTTP | Versioned permissive envelope with unknown fields retained. |
 
-Provider contracts do not expose identical evidence. Claude Code does not expose hidden reasoning or complete general token/cost usage. Cursor has no dedicated universal token/cost event or native manual permission-result event. The recorder does not estimate or invent those fields.
+Provider contracts do not expose identical evidence. The installed Claude Code and Cursor command-hook adapters do not expose hidden reasoning or complete universal token/cost telemetry; those providers offer separate opt-in OpenTelemetry surfaces. Cursor has no dedicated local hook for a native manual permission result. The recorder does not estimate or invent absent fields.
 
 ## Requirements
 
@@ -146,11 +146,12 @@ node build/server/cli.js prune --raw-older-than=30 --snapshots-older-than=90 --a
 
 Raw retention removes native envelopes while keeping normalized timeline and correlation data. Snapshot retention removes old content blobs while preserving provenance marked `pruned`.
 
-## Claude Code and Cursor hooks
+## Codex, Claude Code, and Cursor hooks
 
 Build first, then preview a complete native configuration fragment:
 
 ```bash
+node build/server/cli.js config --provider=codex --data-dir="$PWD/.flight-recorder"
 node build/server/cli.js config --provider=claude --data-dir="$PWD/.flight-recorder"
 node build/server/cli.js config --provider=cursor --data-dir="$PWD/.flight-recorder"
 ```
@@ -158,6 +159,9 @@ node build/server/cli.js config --provider=cursor --data-dir="$PWD/.flight-recor
 The managed installer structurally merges existing JSON, deduplicates recorder handlers, and creates a timestamped backup. It changes nothing until `--apply` is present.
 
 ```bash
+node build/server/cli.js install-hooks --provider=codex --scope=user --data-dir="$PWD/.flight-recorder"
+node build/server/cli.js install-hooks --provider=codex --scope=user --data-dir="$PWD/.flight-recorder" --apply
+
 node build/server/cli.js install-hooks --provider=claude --scope=user --data-dir="$PWD/.flight-recorder"
 node build/server/cli.js install-hooks --provider=claude --scope=user --data-dir="$PWD/.flight-recorder" --apply
 
@@ -172,7 +176,7 @@ node build/server/cli.js uninstall-hooks --provider=cursor --scope=user
 node build/server/cli.js rollback-hooks --provider=cursor --scope=user --backup=/path/from/install-receipt --apply
 ```
 
-Command-hook timeouts fail open so recorder failure does not block the coding agent. Hooks run with the local user's permissions; review generated commands before applying them.
+Command-hook capture returns success even when local persistence fails so recorder failure does not block the coding agent. Provider timeout semantics differ, so hooks run with a five-second ceiling and the recorder never emits a provider decision. Hooks run with the local user's permissions; review generated commands before applying them.
 
 ## Compatible agent protocol
 

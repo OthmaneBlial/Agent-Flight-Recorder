@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { recordHookEvent } from '../src/server/hooks.js';
-import { CLAUDE_HOOK_EVENTS, CURSOR_HOOK_EVENTS } from '../src/server/hook-config.js';
+import { CLAUDE_HOOK_EVENTS, CODEX_HOOK_EVENTS, CURSOR_HOOK_EVENTS } from '../src/server/hook-config.js';
 import { RecorderStore } from '../src/server/store.js';
 
 const tempDirectories: string[] = [];
@@ -13,7 +13,38 @@ afterEach(() => {
 });
 
 describe('official provider event contracts', () => {
-  it('ingests all 31 documented Claude Code hook events without dropping the native envelope', () => {
+  it('ingests all 11 documented Codex hook events without dropping the native envelope', () => {
+    const store = createStore();
+    const receipts = CODEX_HOOK_EVENTS.map((event, index) => {
+      const payload = {
+        session_id: 'codex-contract',
+        turn_id: 'turn-1',
+        transcript_path: '/tmp/codex-contract.jsonl',
+        cwd: '/work/codex-contract',
+        model: 'gpt-5',
+        permission_mode: 'workspace-write',
+        hook_event_name: event,
+        timestamp: new Date(Date.parse('2026-08-20T09:00:00.000Z') + index * 1_000).toISOString(),
+        ...codexFields(event),
+      };
+      return { event, receipt: recordHookEvent(store, 'codex', event, payload) };
+    });
+
+    expect(receipts).toHaveLength(CODEX_HOOK_EVENTS.length);
+    expect(receipts.flatMap(({ receipt }) => receipt.eventIds)).toHaveLength(CODEX_HOOK_EVENTS.length);
+    for (const { event, receipt } of receipts) {
+      const stored = store.getEvent(receipt.eventId)!;
+      expect(stored.raw).toMatchObject({ hook_event_name: event });
+      expect(stored.payload).toMatchObject({ providerEvent: event });
+    }
+    expect(receipts.find(({ event }) => event === 'UserPromptSubmit')?.receipt.kind).toBe('prompt');
+    expect(receipts.find(({ event }) => event === 'PreToolUse')?.receipt.kind).toBe('test');
+    expect(receipts.find(({ event }) => event === 'PermissionRequest')?.receipt.kind).toBe('permission');
+    expect(receipts.find(({ event }) => event === 'PostCompact')?.receipt.kind).toBe('context');
+    store.close();
+  });
+
+  it('ingests all 33 documented Claude Code hook events without dropping the native envelope', () => {
     const store = createStore();
     const receipts = CLAUDE_HOOK_EVENTS.map((event, index) => {
       const payload = {
@@ -30,8 +61,8 @@ describe('official provider event contracts', () => {
       return { event, receipt: recordHookEvent(store, 'claude', event, payload) };
     });
 
-    expect(receipts).toHaveLength(31);
-    expect(receipts.flatMap(({ receipt }) => receipt.eventIds)).toHaveLength(31);
+    expect(receipts).toHaveLength(CLAUDE_HOOK_EVENTS.length);
+    expect(receipts.flatMap(({ receipt }) => receipt.eventIds)).toHaveLength(CLAUDE_HOOK_EVENTS.length);
     for (const { event, receipt } of receipts) {
       const stored = store.getEvent(receipt.eventId)!;
       expect(stored.raw).toMatchObject({ hook_event_name: event });
@@ -85,6 +116,29 @@ describe('official provider event contracts', () => {
     store.close();
   });
 });
+
+function codexFields(event: (typeof CODEX_HOOK_EVENTS)[number]): Record<string, unknown> {
+  const fields: Record<(typeof CODEX_HOOK_EVENTS)[number], Record<string, unknown>> = {
+    SessionStart: { source: 'startup' },
+    SessionEnd: { reason: 'other' },
+    SubagentStart: { agent_id: 'agent-1', agent_type: 'explore' },
+    PreToolUse: { tool_name: 'Bash', tool_input: { command: 'npm test -- contract' }, tool_use_id: 'codex-tool-1' },
+    PermissionRequest: { tool_name: 'Bash', tool_input: { command: 'git push' } },
+    PostToolUse: {
+      tool_name: 'Bash',
+      tool_input: { command: 'npm test -- contract' },
+      tool_use_id: 'codex-tool-1',
+      tool_output: 'passed',
+      duration_ms: 4,
+    },
+    UserPromptSubmit: { prompt: 'Inspect the contract' },
+    PreCompact: { trigger: 'auto' },
+    PostCompact: { trigger: 'auto' },
+    SubagentStop: { agent_id: 'agent-1', agent_type: 'explore', last_assistant_message: 'Done' },
+    Stop: { last_assistant_message: 'Complete' },
+  };
+  return fields[event];
+}
 
 function claudeFields(event: (typeof CLAUDE_HOOK_EVENTS)[number]): Record<string, unknown> {
   const fields: Record<(typeof CLAUDE_HOOK_EVENTS)[number], Record<string, unknown>> = {
@@ -143,6 +197,28 @@ function claudeFields(event: (typeof CLAUDE_HOOK_EVENTS)[number]): Record<string
     PostCompact: { trigger: 'auto', compact_summary: 'Compacted state' },
     Elicitation: { mcp_server_name: 'server', message: 'Choose', mode: 'form', elicitation_id: 'elicit-1', requested_schema: { type: 'object' } },
     ElicitationResult: { mcp_server_name: 'server', action: 'accept', mode: 'form', elicitation_id: 'elicit-1', content: { accepted: true } },
+    PreModelSwitch: {
+      from_model: 'claude-sonnet-5',
+      to_model: 'claude-opus-5',
+      requested_model: 'opus',
+      source: 'command',
+      context_tokens: 182_340,
+      prompt_cache_warm: true,
+      cache_ttl: '5m',
+      estimated_cache_write_usd: 1.1396,
+      pricing: 'catalog',
+    },
+    PostModelSwitch: {
+      from_model: 'claude-sonnet-5',
+      to_model: 'claude-opus-5',
+      requested_model: 'opus',
+      source: 'command',
+      context_tokens: 182_340,
+      prompt_cache_warm: true,
+      cache_ttl: '5m',
+      estimated_cache_write_usd: 1.1396,
+      pricing: 'catalog',
+    },
     SessionEnd: { reason: 'other' },
   };
   return fields[event];

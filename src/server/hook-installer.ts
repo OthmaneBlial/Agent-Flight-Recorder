@@ -6,7 +6,7 @@ import type { Provider } from '../shared/types.js';
 import { generateHookConfig } from './hook-config.js';
 
 const INSTALLATION_MARKER = '--installation-id=agent-flight-recorder';
-type HookProvider = Extract<Provider, 'claude' | 'cursor'>;
+type HookProvider = Extract<Provider, 'codex' | 'claude' | 'cursor'>;
 type JsonRecord = Record<string, unknown>;
 
 export interface HookInstallOptions {
@@ -65,6 +65,7 @@ export function rollbackProviderHooks(
 
 export function hookConfigPath(options: Pick<HookInstallOptions, 'provider' | 'scope' | 'projectRoot' | 'homeRoot'>): string {
   const root = options.scope === 'user' ? resolve(options.homeRoot ?? homedir()) : resolve(options.projectRoot ?? process.cwd());
+  if (options.provider === 'codex') return join(root, '.codex', 'hooks.json');
   if (options.provider === 'claude') return options.scope === 'user' ? join(root, '.claude', 'settings.json') : join(root, '.claude', 'settings.local.json');
   return join(root, '.cursor', 'hooks.json');
 }

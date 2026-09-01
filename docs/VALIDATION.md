@@ -20,7 +20,7 @@ On the date above it produced:
 - Biome formatting and lint: passed;
 - strict client and server TypeScript: passed;
 - Vitest: 48 tests in 11 files passed;
-- publishable-file privacy scan: 93 files checked, no blocked evidence or absolute home path found;
+- publishable-file privacy scan: passed with no blocked evidence or absolute home path found;
 - production server/CLI and Vite console build: passed;
 - Playwright Chromium: 3 journeys passed, covering the sandbox boundary, diff/retry/comparison evidence, keyboard navigation, mobile Flights/Timeline/Evidence navigation, failed requests, console errors, and horizontal overflow;
 - production dependency audit: zero known vulnerabilities at moderate severity or above.

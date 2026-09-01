@@ -54,6 +54,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "screenshots": "npm run build && node scripts/capture-screenshots.mjs",
+    "social-card": "node scripts/capture-social-card.mjs",
     "privacy:check": "node scripts/check-public-privacy.mjs",
     "verify": "npm run format:check && npm run lint && npm run check && npm run test && npm run privacy:check && npm run build",
     "prepack": "npm run build && npm run privacy:check"

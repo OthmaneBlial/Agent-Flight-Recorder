@@ -1,9 +1,9 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  # Temporarily manual-only. Restore `push` and `pull_request` triggers here
+  # when automatic CI should run again.
+  workflow_dispatch:
 
 permissions:
   contents: read

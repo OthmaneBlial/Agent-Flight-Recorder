@@ -17,6 +17,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: process.env.AFR_SOURCE_MAPS === '1',
   },
 });

@@ -6,16 +6,36 @@
   "bin": {
     "agent-flight-recorder": "build/server/cli.js"
   },
-  "description": "Local-first observability and replay for AI coding agents.",
+  "description": "A local black box and forensic replay console for AI coding agents.",
+  "homepage": "https://othmaneblial.github.io/Agent-Flight-Recorder/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OthmaneBlial/Agent-Flight-Recorder.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OthmaneBlial/Agent-Flight-Recorder/issues"
+  },
   "license": "MIT",
   "keywords": [
     "ai-agents",
+    "agent-debugging",
+    "ai-observability",
+    "audit-trail",
     "observability",
     "local-first",
     "codex",
     "claude-code",
     "cursor",
-    "opencode"
+    "opencode",
+    "privacy-first"
+  ],
+  "files": [
+    "build",
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md"
   ],
   "scripts": {
     "dev": "node scripts/dev.mjs",
@@ -35,7 +55,8 @@
     "test:e2e": "playwright test",
     "screenshots": "npm run build && node scripts/capture-screenshots.mjs",
     "privacy:check": "node scripts/check-public-privacy.mjs",
-    "verify": "npm run format:check && npm run lint && npm run check && npm run test && npm run privacy:check && npm run build"
+    "verify": "npm run format:check && npm run lint && npm run check && npm run test && npm run privacy:check && npm run build",
+    "prepack": "npm run build && npm run privacy:check"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",

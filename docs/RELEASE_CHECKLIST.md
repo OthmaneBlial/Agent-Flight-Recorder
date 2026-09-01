@@ -9,5 +9,6 @@
 7. Dry-run Codex, Claude Code, and Cursor hook installation and confirm existing user hooks remain structurally intact.
 8. Export and import an encrypted test bundle into a new data directory; never use private production evidence in release artifacts.
 9. Confirm the README commands and internal links from a clean clone.
-10. Confirm CI is green and pinned action SHAs are still associated with the documented upstream major releases.
-11. Tag only after the release commit is reviewed. Do not publish recorder databases, key files, `.afr` bundles, Playwright traces, or source maps as release assets.
+10. Run `npm pack --dry-run --json`, install the tarball into a temporary prefix, and verify `--version`, `--help`, and sandbox health from that installed package.
+11. Confirm CI is green and pinned action SHAs are still associated with the documented upstream major releases.
+12. Tag only after the release commit is reviewed. Attach only the tested package tarball and its SHA-256 checksum; do not publish recorder databases, key files, `.afr` bundles, Playwright traces, or source maps as release assets.

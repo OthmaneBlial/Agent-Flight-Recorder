@@ -10,12 +10,14 @@ All notable changes are documented here. The project follows [Semantic Versionin
 - Claude Code coverage for the two newer model-switch events, bringing the documented hook contract to 33 events.
 - Focused phone navigation across Flights, Timeline, and Evidence, with failures and capture gaps retained in the mobile metric strip.
 - CLI-based OpenCode database discovery through `opencode db path`, with bounded execution and a version-tested fallback.
+- A compact GitHub Release tarball that installs the CLI and production console without a repository checkout.
 
 ### Changed
 
 - Codex transcript and OpenCode SQLite ingestion are labeled as version-tested backfill surfaces instead of stable provider APIs.
 - Provider claims, setup guidance, screenshots, validation evidence, and public-site copy now match current implementation boundaries.
 - Screenshot generation synchronizes the README and static-site product assets in one deterministic run.
+- The production console ships only the required Latin font subsets and omits source maps unless `AFR_SOURCE_MAPS=1` is explicit.
 
 ## [0.2.0] - 2026-08-21
 

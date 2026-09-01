@@ -24,6 +24,7 @@ On the date above it produced:
 - production server/CLI and Vite console build: passed;
 - Playwright Chromium: 3 journeys passed, covering the sandbox boundary, diff/retry/comparison evidence, keyboard navigation, mobile Flights/Timeline/Evidence navigation, failed requests, console errors, and horizontal overflow;
 - production dependency audit: zero known vulnerabilities at moderate severity or above.
+- GitHub Release package: the `0.3.0` tarball installed into an isolated prefix; `--version`, `--help`, synthetic demo startup, and sandbox `/api/health` all passed from the installed artifact.
 
 The deterministic screenshot run generated `docs/assets/replay-console.png`, `docs/assets/code-evolution.png`, and `docs/assets/mobile-replay.png` from the scan-locked synthetic demo. The same files are synchronized into `site/assets/` by the capture script.
 
@@ -52,4 +53,5 @@ The deterministic screenshot run generated `docs/assets/replay-console.png`, `do
 - re-run provider-contract research whenever official lifecycle documentation changes;
 - test more browsers and assistive technologies beyond the three scripted Chromium journeys;
 - validate future signed desktop packages on each target operating system;
+- publish to a package registry only if a separately reviewed registry release is wanted; `0.3.0` is distributed as a GitHub Release tarball;
 - treat any historical large-store benchmark as a past observation, not a current performance guarantee.

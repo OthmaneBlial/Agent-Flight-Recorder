@@ -227,7 +227,7 @@ Common options:
   --version, -v                 Print the version
 
 Examples:
-  npm run demo -- --reset
+  agent-flight-recorder demo --reset
   agent-flight-recorder serve --data-dir=.flight-recorder
   agent-flight-recorder scan --all
   agent-flight-recorder doctor

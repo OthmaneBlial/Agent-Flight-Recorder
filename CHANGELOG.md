@@ -4,6 +4,8 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-01
+
 ### Added
 
 - Official Codex command-hook capture for all 11 documented lifecycle events, with dry-run-first user/project installation and coverage diagnostics.
@@ -11,6 +13,7 @@ All notable changes are documented here. The project follows [Semantic Versionin
 - Focused phone navigation across Flights, Timeline, and Evidence, with failures and capture gaps retained in the mobile metric strip.
 - CLI-based OpenCode database discovery through `opencode db path`, with bounded execution and a version-tested fallback.
 - A compact GitHub Release tarball that installs the CLI and production console without a repository checkout.
+- A responsive mobile replay mode, public field manual, SEO metadata, social card, and searchable static showcase.
 
 ### Changed
 
@@ -18,6 +21,7 @@ All notable changes are documented here. The project follows [Semantic Versionin
 - Provider claims, setup guidance, screenshots, validation evidence, and public-site copy now match current implementation boundaries.
 - Screenshot generation synchronizes the README and static-site product assets in one deterministic run.
 - The production console ships only the required Latin font subsets and omits source maps unless `AFR_SOURCE_MAPS=1` is explicit.
+- Package metadata, compatible development tooling, repository positioning, and discoverability surfaces were refreshed for the release.
 
 ## [0.2.0] - 2026-08-21
 

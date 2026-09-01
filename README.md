@@ -5,6 +5,7 @@
 Turn provider traces into a read-only forensic replay of prompts, tool calls, edits, tests, retries, permissions, failures, and code evolution—without sending the evidence to a cloud service.
 
 [![Node.js 24.18.1+](https://img.shields.io/badge/Node.js-24.18.1%2B-5FA04E?style=flat-square)](#requirements)
+[![CI](https://img.shields.io/github/actions/workflow/status/OthmaneBlial/Agent-Flight-Recorder/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/OthmaneBlial/Agent-Flight-Recorder/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/OthmaneBlial/Agent-Flight-Recorder?style=flat-square)](https://github.com/OthmaneBlial/Agent-Flight-Recorder/releases/latest)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-F6C453?style=flat-square)](LICENSE)
 ![Local first](https://img.shields.io/badge/network-loopback--only-70D7DF?style=flat-square)
@@ -23,10 +24,8 @@ Replay means read-only playback of recorded evidence. Agent Flight Recorder neve
 The deterministic demo uses an isolated `.flight-recorder-demo` database, performs no native-source scan, requires no account or API key, and contains no personal data.
 
 ```bash
-git clone https://github.com/OthmaneBlial/Agent-Flight-Recorder.git
-cd Agent-Flight-Recorder
-npm ci
-npm run demo -- --reset
+npm install --global https://github.com/OthmaneBlial/Agent-Flight-Recorder/releases/download/v0.3.0/agent-flight-recorder-0.3.0.tgz
+agent-flight-recorder demo --reset
 ```
 
 Open `http://127.0.0.1:4174`. Inspect the successful checkout repair, select **Files** to view an exact before/after diff, select **Tests** to follow failed and successful attempts, or compare it with the earlier failed flight. Use `J`/`K` or the arrow keys to step and `Space` to replay.
@@ -34,8 +33,10 @@ Open `http://127.0.0.1:4174`. Inspect the successful checkout repair, select **F
 If port 4174 is occupied:
 
 ```bash
-npm run demo -- --reset --port=4180
+agent-flight-recorder demo --reset --port=4180
 ```
+
+To work from source instead, clone the repository, run `npm ci`, then use `npm run demo -- --reset`.
 
 For frontend development, `npm run dev` is privacy-safe by default: it resets and seeds only the synthetic sandbox, blocks native scans and live hook ingestion, ignores an ambient `AFR_DATA_DIR`, and automatically selects a free loopback web/API port pair.
 
@@ -254,7 +255,7 @@ Install the browser once when needed:
 npx playwright install chromium
 ```
 
-The checked-in workflow runs verification, a production dependency audit, and Chromium E2E on Node 24.18.1 when manually dispatched. Automatic push and pull-request triggers are temporarily paused during the repository-wide upgrade. Action revisions are pinned to immutable commits, and Dependabot tracks npm and workflow updates.
+The checked-in workflow runs verification, a production dependency audit, and Chromium E2E on Node 24.18.1 for every push to `main`, every pull request, and manual dispatch. Action revisions are pinned to immutable commits, and Dependabot tracks npm and workflow updates.
 
 ### Repository map
 

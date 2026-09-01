@@ -76,7 +76,7 @@ Before publishing, run `npm run privacy:check`. It rejects recorder databases, k
 | Provider | Capture surface | Current behavior |
 | --- | --- | --- |
 | Codex | Official command hooks + version-tested transcript backfill | All 11 documented lifecycle hooks normalized. Incremental bounded JSONL reads remain available for historical evidence, but Codex does not promise a stable transcript format. |
-| OpenCode | Version-tested native SQLite database and WAL | Read-only session/message/part/tool/file/token/cost import with WAL-aware change detection. The path and schema are internal surfaces, not a guaranteed OpenCode API. |
+| OpenCode | CLI-discovered, version-tested SQLite database and WAL | Resolves the active path through `opencode db path`, then performs a read-only session/message/part/tool/file/token/cost import with WAL-aware change detection. The schema remains an internal surface, not a guaranteed OpenCode API. |
 | Claude Code | Official command hooks | All 33 documented events normalized; exact file boundaries when a synchronous hook and safe workspace path permit them. |
 | Cursor | Official native command hooks | All 21 documented local IDE/CLI events normalized; completed thought blocks and detailed shell/file events preserved. Cursor cloud agents expose a smaller hook subset. |
 | Compatible agents | `afr.event.v1` over stdin or loopback HTTP | Versioned permissive envelope with unknown fields retained. |
@@ -87,7 +87,7 @@ Provider contracts do not expose identical evidence. The installed Claude Code a
 
 - Node.js 24.18.1 or newer (`.nvmrc` and `.node-version` are included). This floor avoids the experimental `node:sqlite` runtime warning present in earlier releases.
 - npm 11
-- macOS, Linux, or Windows for the recorder; native-source discovery currently targets the standard Codex and OpenCode paths documented above
+- macOS, Linux, or Windows for the recorder; Codex backfill uses its standard local path, while OpenCode asks its CLI for the active database path before trying the version-tested default
 - Chromium only for browser tests and screenshot generation
 
 No database server, cloud account, paid API, or agent credential is required.
@@ -293,7 +293,7 @@ Read [the architecture](docs/ARCHITECTURE.md) for schema, correlation, migration
 - Full-page SQLCipher encryption is not provided; evidence-bearing columns are encrypted while indexed metadata stays plaintext.
 - Parallel identical actions without provider call IDs can remain temporally ambiguous; every callback is retained and the nearest bounded match is labeled without overstating identity.
 - The console is intentionally a single-user local tool. Remote access and multi-user authentication are outside its threat model.
-- Native Codex/OpenCode discovery uses their standard local paths; custom provider locations currently require adapter or compatible-hook configuration.
+- Codex transcript backfill uses its standard local path. OpenCode database discovery first runs `opencode db path` with a bounded timeout, then falls back to the version-tested standard path. Other custom provider locations require adapter or compatible-hook configuration.
 
 ## Project information
 

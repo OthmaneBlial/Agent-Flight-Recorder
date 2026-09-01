@@ -221,7 +221,7 @@ npm run demo -- --reset</code></pre>
             <h2>Five capture surfaces, one operational vocabulary.</h2>
             <div class="provider-docs-grid">
               <article><span class="provider-dot codex"></span><h3>Codex</h3><p>All 11 official lifecycle hooks. Incremental transcript reads remain a version-tested historical backfill, not a stable API.</p></article>
-              <article><span class="provider-dot opencode"></span><h3>OpenCode</h3><p>Read-only import from a version-tested internal SQLite database and WAL. The current path and schema are not guaranteed APIs.</p></article>
+              <article><span class="provider-dot opencode"></span><h3>OpenCode</h3><p>Uses <code>opencode db path</code> before a version-tested default fallback, then imports the internal SQLite database and WAL read-only. The schema is not a guaranteed API.</p></article>
               <article><span class="provider-dot claude"></span><h3>Claude Code</h3><p>All 33 documented official hook events. The local hook adapter does not expose hidden reasoning or complete token/cost telemetry.</p></article>
               <article><span class="provider-dot cursor"></span><h3>Cursor</h3><p>All 21 documented local IDE/CLI hook events. Cloud agents expose a smaller subset.</p></article>
               <article><span class="provider-dot compat"></span><h3>Compatible</h3><p><code>afr.event.v1</code> over stdin or loopback HTTP. Unknown fields survive normalization.</p></article>

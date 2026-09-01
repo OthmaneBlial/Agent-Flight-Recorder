@@ -31,7 +31,7 @@ native logs / provider hooks / compatible envelope
 | Provider | Surface | Current implementation |
 | --- | --- | --- |
 | Codex | Official command hooks + version-tested transcript backfill | All 11 documented lifecycle hooks supported. Incremental JSONL ingestion provides backfill and best-effort snapshots, but the transcript schema is not a stable Codex interface. |
-| OpenCode | Version-tested internal SQLite/WAL | Read-only import of sessions, messages, parts, tools, files, tokens, cost, and historical file gaps. The current path/schema are implementation details, not a stable API. |
+| OpenCode | CLI-discovered, version-tested internal SQLite/WAL | The active path comes from `opencode db path` when available, with a version-tested default fallback. Sessions, messages, parts, tools, files, tokens, cost, and historical file gaps are imported read-only; the schema is not a stable API. |
 | Claude Code | Official command hooks | All 33 documented events supported; synchronous file hooks capture exact boundaries when possible. |
 | Cursor | Official native command hooks | All 21 documented local IDE/CLI events supported; synchronous file hooks capture exact boundaries when possible. Cloud-agent coverage is smaller. |
 | Compatible agents | `afr.event.v1` JSON over stdin or loopback HTTP | Versioned permissive envelope; unknown fields retained. |

@@ -5,7 +5,7 @@ Agent Flight Recorder is designed to keep evidence on the local machine.
 - The HTTP server binds only to `127.0.0.1`, `localhost`, or `::1`; other bind addresses are rejected. Requests also require a loopback `Host`, and mutating browser requests require a loopback `Origin`, limiting DNS-rebinding and cross-site request attacks against the local API.
 - The application contains no telemetry, analytics, cloud database, remote exporter, or third-party font request.
 - Provider hook configuration is generated but never installed automatically. Review and merge it into existing settings deliberately.
-- Recorder hooks are observational and fail open. They emit an empty success object and do not make allow/deny decisions.
+- Recorder hooks are observational. They emit an empty success object by default, including after local capture failure, and do not make allow/deny decisions. Provider timeout behavior differs, so a timeout must not be described as universally fail-open.
 - Native records can contain prompts, source code, terminal output, paths, email addresses, credentials, and environment values. Protect the recorder directory like source code or a shell history.
 - Normalized payloads, raw native envelopes, and snapshot content blobs are encrypted with AES-256-GCM before SQLite persistence. On macOS the 256-bit key is held in the login Keychain; `AFR_STORE_KEY` can provide it explicitly; other platforms use a mode-`0600` adjacent key file.
 - Unix data directories are forced to `0700`; the database, WAL/SHM, and fallback key file are forced to `0600`.

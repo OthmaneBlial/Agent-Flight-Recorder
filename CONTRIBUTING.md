@@ -11,7 +11,7 @@ npm ci
 npm run demo -- --reset
 ```
 
-The demo opens at `http://127.0.0.1:4174` and never scans native agent history. Use `npm run dev` only when you intentionally want the recorder to discover local Codex/OpenCode sources.
+The demo opens at `http://127.0.0.1:4174` and never scans native agent history. `npm run dev` uses the same scan-locked synthetic sandbox with hot reload and automatically chooses a free local port pair. Only `npm run dev:private` discovers native Codex/OpenCode evidence.
 
 ## Before opening a pull request
 

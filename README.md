@@ -1,25 +1,30 @@
 # Agent Flight Recorder
 
-**Turn local AI coding-agent traces into an auditable replay of prompts, tool calls, edits, tests, retries, permissions, resource usage, failures, and code evolution—without sending the evidence to a cloud service.**
+**The local black box for AI coding agents.**
+
+Turn provider traces into a read-only forensic replay of prompts, tool calls, edits, tests, retries, permissions, failures, and code evolution—without sending the evidence to a cloud service.
 
 [![Node.js 24.18.1+](https://img.shields.io/badge/Node.js-24.18.1%2B-5FA04E?style=flat-square)](#requirements)
-[![CI](https://github.com/OthmaneBlial/Agent-Flight-Recorder/actions/workflows/ci.yml/badge.svg)](https://github.com/OthmaneBlial/Agent-Flight-Recorder/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/OthmaneBlial/Agent-Flight-Recorder?style=flat-square)](https://github.com/OthmaneBlial/Agent-Flight-Recorder/releases/latest)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-F6C453?style=flat-square)](LICENSE)
 ![Local first](https://img.shields.io/badge/network-loopback--only-70D7DF?style=flat-square)
 ![No telemetry](https://img.shields.io/badge/telemetry-none-8DDD72?style=flat-square)
 
-[**Explore the live showcase and field manual →**](https://othmaneblial.github.io/Agent-Flight-Recorder/)
+[**Explore the product tour and field manual →**](https://othmaneblial.github.io/Agent-Flight-Recorder/) · [**Run the private synthetic demo ↓**](#run-the-private-synthetic-demo)
 
 ![Agent Flight Recorder replay console](docs/assets/replay-console.png)
 
-Agent Flight Recorder is a local black box for engineers who need to answer questions that chat history cannot: _What exactly ran? Which attempt failed? Was a permission result explicit or inferred? What changed on disk? What evidence is missing?_ It normalizes native provider evidence into an append-only SQLite timeline while preserving the raw source, provenance, and uncertainty behind every conclusion.
+Agent Flight Recorder helps answer questions that chat history cannot: _What exactly ran? Which attempt failed? Was a permission result explicit or inferred? What changed on disk? What evidence is missing?_ It normalizes local provider evidence into an append-only SQLite timeline while preserving provenance and uncertainty behind every conclusion.
 
-## Try the full product in two commands
+Replay means read-only playback of recorded evidence. Agent Flight Recorder never re-executes tools, commands, or agent actions. It is designed for coding-agent incident review and audit trails, not as a hosted production LLM APM platform.
+
+## Run the private synthetic demo
 
 The deterministic demo uses an isolated `.flight-recorder-demo` database, performs no native-source scan, requires no account or API key, and contains no personal data.
 
 ```bash
+git clone https://github.com/OthmaneBlial/Agent-Flight-Recorder.git
+cd Agent-Flight-Recorder
 npm ci
 npm run demo -- --reset
 ```
@@ -54,6 +59,13 @@ npm run dev:private
 - **Durable correlation.** Tool facets, outcomes, retries, permissions, and related file evidence survive restarts and portable bundle round trips.
 - **Local by construction.** The service hard-binds to loopback, rejects untrusted Host/Origin values, emits no telemetry, and encrypts evidence-bearing columns at rest.
 - **Honest scale.** List projections omit heavy payloads, timeline rows are virtualized, and native scans run outside the API process.
+
+### Use it when
+
+- a coding agent ran a command or test and the result is disputed or hard to reconstruct;
+- you need the exact before/after evidence for a file mutation, including an explicit gap when it was unavailable;
+- a retry, permission request, provider callback, or failed attempt disappeared inside a long chat transcript;
+- provider-specific traces need one local vocabulary without erasing their original envelopes.
 
 ## The 30-second demo story
 
@@ -242,7 +254,7 @@ Install the browser once when needed:
 npx playwright install chromium
 ```
 
-GitHub Actions runs verification, a production dependency audit, and Chromium E2E on Node 24.18.1. Action revisions are pinned to immutable commits, and Dependabot tracks npm and workflow updates.
+The checked-in workflow runs verification, a production dependency audit, and Chromium E2E on Node 24.18.1 when manually dispatched. Automatic push and pull-request triggers are temporarily paused during the repository-wide upgrade. Action revisions are pinned to immutable commits, and Dependabot tracks npm and workflow updates.
 
 ### Repository map
 
@@ -253,7 +265,7 @@ src/shared/            canonical public types
 src/web/               replay console
 tests/                 unit and integration contracts
 tests/e2e/             primary browser journeys
-docs/                  architecture, formats, audit, release, troubleshooting
+docs/                  architecture, formats, validation, release, troubleshooting
 research_provider_hooks/ provider-contract research notes
 ```
 
@@ -300,6 +312,7 @@ Read [the architecture](docs/ARCHITECTURE.md) for schema, correlation, migration
 - [Contributing](CONTRIBUTING.md)
 - [Security and privacy](SECURITY.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Validation evidence](docs/VALIDATION.md)
 - [Changelog](CHANGELOG.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)

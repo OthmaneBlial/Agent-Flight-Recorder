@@ -64,7 +64,7 @@
           <p class="hero-lede">
             A local black box for AI coding agents. Inspect prompts, tool calls, file edits,
             tests, retries, permissions, resource usage, failures, and code evolution as one
-            evidence-backed timeline.
+            evidence-backed timeline. Replay is read-only: recorded actions are never re-executed.
           </p>
           <div class="hero-actions">
             <a class="button button-primary" href="#quick-start">Run the safe demo</a>
@@ -122,7 +122,7 @@
 
       <section class="proof-rail" aria-label="Verified project facts">
         <div><strong>5</strong><span>evidence surfaces</span></div>
-        <div><strong>43</strong><span>unit + integration tests</span></div>
+        <div><strong>48</strong><span>unit + integration tests</span></div>
         <div><strong>3</strong><span>Chromium journeys</span></div>
         <div><strong>0</strong><span>telemetry endpoints</span></div>
         <div><strong>V7</strong><span>SQLite schema</span></div>
@@ -182,8 +182,8 @@
             <div>
               <h3>Replay</h3>
               <p>
-                Navigate a virtualized timeline, inspect exact or best-effort code evolution,
-                compare flights, and export authenticated encrypted archives.
+                Navigate a read-only virtualized timeline, inspect exact or best-effort code
+                evolution, compare flights, and export authenticated encrypted archives.
               </p>
             </div>
             <span class="step-code" aria-hidden="true">TIMELINE / DIFF / BUNDLE</span>
@@ -311,8 +311,8 @@
         <div class="section-index" aria-hidden="true">05 / SAFE FIRST FLIGHT</div>
         <div class="quick-grid">
           <div class="section-heading reveal">
-            <p class="eyebrow">Two commands, synthetic evidence</p>
-            <h2 id="quick-title">Open the complete product without scanning your machine.</h2>
+            <p class="eyebrow">Four commands from a clean terminal</p>
+            <h2 id="quick-title">Open the full product without scanning your machine.</h2>
             <p>
               The demo resets only its isolated store, seeds two deterministic flights, disables
               native discovery, and contains no personal data or account requirement.
@@ -325,7 +325,9 @@
                 <span data-copy-label>Copy</span>
               </button>
             </div>
-            <pre id="quick-command"><code>npm ci
+            <pre id="quick-command"><code>git clone https://github.com/OthmaneBlial/Agent-Flight-Recorder.git
+cd Agent-Flight-Recorder
+npm ci
 npm run demo -- --reset</code></pre>
             <p class="command-note">Then open <code>http://127.0.0.1:4174</code></p>
           </div>

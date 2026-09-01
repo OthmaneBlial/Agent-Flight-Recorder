@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, relative, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
@@ -7,7 +7,10 @@ const output = execFileSync('git', ['ls-files', '--cached', '--others', '--exclu
   cwd: root,
   encoding: 'utf8',
 });
-const candidates = output.split('\0').filter(Boolean);
+const candidates = output
+  .split('\0')
+  .filter(Boolean)
+  .filter((candidate) => existsSync(resolve(root, candidate)));
 const forbiddenArtifacts = /(?:^|\/)(?:recorder\.db(?:-(?:wal|shm))?|recorder\.db\.key|[^/]+\.afr)$/i;
 const textExtensions = new Set([
   '',

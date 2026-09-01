@@ -4,6 +4,19 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## [Unreleased]
 
+### Added
+
+- Official Codex command-hook capture for all 11 documented lifecycle events, with dry-run-first user/project installation and coverage diagnostics.
+- Claude Code coverage for the two newer model-switch events, bringing the documented hook contract to 33 events.
+- Focused phone navigation across Flights, Timeline, and Evidence, with failures and capture gaps retained in the mobile metric strip.
+- CLI-based OpenCode database discovery through `opencode db path`, with bounded execution and a version-tested fallback.
+
+### Changed
+
+- Codex transcript and OpenCode SQLite ingestion are labeled as version-tested backfill surfaces instead of stable provider APIs.
+- Provider claims, setup guidance, screenshots, validation evidence, and public-site copy now match current implementation boundaries.
+- Screenshot generation synchronizes the README and static-site product assets in one deterministic run.
+
 ## [0.2.0] - 2026-08-21
 
 ### Added

@@ -12,7 +12,7 @@ npm start -- --port=4180
 
 ## The console shows reconnecting
 
-Open `http://127.0.0.1:4174/api/health`. If it is unavailable, start the recorder with `npm start`. In development, keep both processes from `npm run dev` running: Vite uses port 4173 and proxies the API to 4174.
+Open `http://127.0.0.1:4174/api/health`. If it is unavailable, start the recorder with `npm start`. In development, keep both processes from `npm run dev` running and use the console URL printed in the terminal. The launcher starts with web/API ports 4173/4174 and automatically selects a free pair when either is occupied.
 
 ## No flights are listed
 

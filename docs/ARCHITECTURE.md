@@ -92,7 +92,7 @@ The server rejects non-loopback bind addresses and non-loopback `Host` headers. 
 - `POST /api/hooks/:provider/:event`
 - `GET /api/stream` for server-sent live updates
 
-The production server also serves the built console. Development uses Vite on `127.0.0.1:4173` and proxies the API to `127.0.0.1:4174`.
+The production server also serves the built console. Development starts with Vite/API ports 4173/4174, automatically selects a free loopback pair when needed, and prints the active console URL.
 
 ## Demonstration boundary
 

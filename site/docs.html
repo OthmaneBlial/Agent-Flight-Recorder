@@ -129,7 +129,9 @@
                 <span>INSTALL + DEMO</span>
                 <button class="copy-button" type="button" data-copy-target="docs-demo"><span data-copy-label>Copy</span></button>
               </div>
-              <pre id="docs-demo"><code>npm ci
+              <pre id="docs-demo"><code>git clone https://github.com/OthmaneBlial/Agent-Flight-Recorder.git
+cd Agent-Flight-Recorder
+npm ci
 npm run demo -- --reset</code></pre>
             </div>
             <p>Open <code>http://127.0.0.1:4174</code>. If that port is occupied:</p>
@@ -371,7 +373,7 @@ node build/server/cli.js prune \
               <div><span>GET</span><code>/api/health</code><p>Readiness, policy, source, snapshot, gap, call, permission, and heartbeat health.</p></div>
               <div><span>GET</span><code>/api/overview</code><p>Counts, storage policy, schema version, and source summary.</p></div>
               <div><span>GET</span><code>/api/sessions</code><p>Lightweight recorded-flight list projections.</p></div>
-              <div><span>GET</span><code>/api/sessions/:id/events</code><p>Ordered, paged timeline projections.</p></div>
+              <div><span>GET</span><code>/api/sessions/:id/events</code><p>Ordered timeline projections with a bounded <code>limit</code>.</p></div>
               <div><span>GET</span><code>/api/events/:id/evolution</code><p>Snapshot assurance, boundaries, and bounded unified diff.</p></div>
               <div><span>GET</span><code>/api/compare?left=:id&amp;right=:id</code><p>Canonical metrics, kinds, failures, gaps, and files.</p></div>
               <div><span>POST</span><code>/api/scan</code><p>Manual native scan; rejected inside the public demo sandbox.</p></div>

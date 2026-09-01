@@ -64,9 +64,15 @@ test('keeps the primary replay usable on a phone-sized viewport', async ({ page 
   await page.goto('/');
   await expect(page.locator('[data-app-ready="true"]')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Checkout race repaired and verified' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Timeline/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: /Flights/ }).click();
+  await expect(page.getByRole('heading', { name: 'RECORDED FLIGHTS' })).toBeVisible();
+  await page.getByRole('button', { name: /Checkout race repaired and verified/ }).click();
+  await expect(page.getByRole('button', { name: /Timeline/ })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: /Tests/ }).click();
   await expect(page.getByRole('button', { name: /Checkout regression suite passed/ })).toBeVisible();
   await page.getByRole('button', { name: /Checkout regression suite passed/ }).click();
+  await expect(page.getByRole('button', { name: /Evidence/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('heading', { name: 'ATTEMPT LINEAGE' })).toBeVisible();
 
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);

@@ -82,6 +82,7 @@ export function App() {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [mobilePane, setMobilePane] = useState<'flights' | 'timeline' | 'evidence'>('timeline');
   const [error, setError] = useState<string | null>(null);
   const selectedRef = useRef<string | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -351,19 +352,38 @@ export function App() {
         )}
       </header>
 
-      {error && (
-        <div className="error-banner" role="alert">
-          <AlertTriangle size={15} /> <span>{error}</span>
-          <button type="button" className="error-retry" onClick={() => void loadShell()}>
-            RETRY
+      <div className="shell-utility">
+        {error && (
+          <div className="error-banner" role="alert">
+            <AlertTriangle size={15} /> <span>{error}</span>
+            <button type="button" className="error-retry" onClick={() => void loadShell()}>
+              RETRY
+            </button>
+            <button type="button" onClick={() => setError(null)} aria-label="Dismiss error">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+        <nav className="mobile-pane-tabs" aria-label="Recorder views">
+          <button type="button" aria-pressed={mobilePane === 'flights'} onClick={() => setMobilePane('flights')}>
+            <Box size={14} />
+            <span>Flights</span>
+            <b>{visibleSessions.length}</b>
           </button>
-          <button type="button" onClick={() => setError(null)} aria-label="Dismiss error">
-            <X size={14} />
+          <button type="button" aria-pressed={mobilePane === 'timeline'} onClick={() => setMobilePane('timeline')}>
+            <Activity size={14} />
+            <span>Timeline</span>
+            <b>{visibleEvents.length}</b>
           </button>
-        </div>
-      )}
+          <button type="button" aria-pressed={mobilePane === 'evidence'} onClick={() => setMobilePane('evidence')} disabled={!selectedEventId}>
+            <FileDiff size={14} />
+            <span>Evidence</span>
+            <b>{selectedEventId ? '01' : '—'}</b>
+          </button>
+        </nav>
+      </div>
 
-      <div className="cockpit-grid">
+      <div className="cockpit-grid" data-mobile-pane={mobilePane}>
         <aside className="session-bay" aria-label="Recorded sessions">
           <div className="panel-heading">
             <div>
@@ -400,6 +420,7 @@ export function App() {
                 onClick={() => {
                   setSelectedSessionId(session.id);
                   setPlaying(false);
+                  setMobilePane('timeline');
                 }}
               >
                 <span className="session-number">{String(index + 1).padStart(2, '0')}</span>
@@ -563,6 +584,7 @@ export function App() {
                         onSelect={() => {
                           setSelectedEventId(event.id);
                           setPlaying(false);
+                          setMobilePane('evidence');
                         }}
                         measureRef={eventVirtualizer.measureElement}
                         offset={virtualRow.start}

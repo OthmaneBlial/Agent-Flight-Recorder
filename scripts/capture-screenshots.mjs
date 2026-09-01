@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process';
-import { mkdir } from 'node:fs/promises';
+import { copyFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { chromium } from '@playwright/test';
 
 const port = 4183;
 const baseUrl = `http://127.0.0.1:${port}`;
 const outputDirectory = resolve('docs/assets');
+const siteOutputDirectory = resolve('site/assets');
 const server = spawn(process.execPath, ['build/server/cli.js', 'demo', '--reset', '--data-dir=.flight-recorder-screenshots', `--port=${port}`], {
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -37,6 +38,13 @@ try {
     await mobile.goto(baseUrl);
     await mobile.locator('[data-app-ready="true"]').waitFor();
     await mobile.screenshot({ path: resolve(outputDirectory, 'mobile-replay.png') });
+
+    await mkdir(siteOutputDirectory, { recursive: true });
+    await Promise.all(
+      ['replay-console.png', 'code-evolution.png', 'mobile-replay.png'].map((asset) =>
+        copyFile(resolve(outputDirectory, asset), resolve(siteOutputDirectory, asset)),
+      ),
+    );
   } finally {
     await browser.close();
   }
